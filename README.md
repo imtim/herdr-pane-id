@@ -12,8 +12,12 @@ screen stays completely clean.
 | Event | Label |
 | --- | --- |
 | `pane.created` | `▍ <pane-id>` |
-| `pane.agent_detected` (agent present) | `<agent> ▍ <pane-id>` |
+| `pane.agent_detected` (agent present) | `<agent-name> ▍ <pane-id>` |
 | `pane.agent_detected` (released / gone) | `▍ <pane-id>` |
+
+`<agent-name>` is the user-assigned name from `herdr agent start <name>` (what you
+address with `herdr agent prompt <name>`), falling back to the detected agent kind
+(`pi`, `codex`, ...) for unnamed agents.
 
 ## Zero-noise in-pane prompt (recommended, optional)
 
@@ -53,7 +57,9 @@ herdr plugin unlink pane-id
 ## Notes
 
 - Only newly created panes are labeled; existing panes are left untouched so manual
-  titles are not clobbered. A manual `pane rename` stays until the next
-  `pane.agent_detected` event updates it.
+  titles are not clobbered. Existing agent panes pick up the agent label on their
+  next `pane.agent_detected` event.
+- `herdr agent rename` does not emit an event, so the label keeps the old name until
+  the next detection event (e.g. agent exit or restart).
 - Pane IDs change when a pane moves to another workspace; the label is not updated
   on move.

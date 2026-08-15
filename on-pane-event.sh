@@ -17,8 +17,9 @@ mkdir -p "$STATE_DIR" 2>/dev/null || true
 log() { printf '%s\n' "$*" >>"$LOG" 2>/dev/null || true; }
 
 # json_get <path>... reads JSON from stdin and prints the first found value
+# (python3 -c so stdin stays available for the piped JSON data)
 json_get() {
-  python3 - "$@" <<'PYEOF'
+  python3 -c '
 import json, sys
 d = json.load(sys.stdin)
 for path in sys.argv[1:]:
@@ -32,7 +33,7 @@ for path in sys.argv[1:]:
         print(node)
         sys.exit(0)
 sys.exit(1)
-PYEOF
+' "$@"
 }
 
 EVENT="${HERDR_PLUGIN_EVENT:-}"
@@ -44,7 +45,7 @@ if [ -z "$PANE_ID" ] && [ -n "$EVENT_JSON" ]; then
   PANE_ID="$(printf '%s' "$EVENT_JSON" | json_get data.pane_id data.pane.pane_id pane_id)" 2>/dev/null || PANE_ID=""
 fi
 [ -z "$PANE_ID" ] && { log "$(date '+%F %T') event=$EVENT no pane id"; exit 0; }
-log "$(date '+%F %T') event=$EVENT pane=$PANE_ID"
+log "$(date '+%F %T') event=$EVENT pane=$PANE_ID json=$EVENT_JSON"
 
 case "$EVENT" in
   pane.created)
@@ -54,8 +55,23 @@ case "$EVENT" in
     AGENT="$(printf '%s' "$EVENT_JSON" | json_get data.agent agent 2>/dev/null || true)"
     RELEASED="$(printf '%s' "$EVENT_JSON" | json_get data.released released 2>/dev/null || true)"
     if [ -n "$AGENT" ] && [ "$AGENT" != "None" ] && [ "$RELEASED" != "True" ]; then
-      LABEL="$AGENT ▍ $PANE_ID"
-      log "  -> agent=$AGENT"
+      # prefer the user-assigned agent name (e.g. `agent start testpi`), which is
+      # what you address with `herdr agent prompt <name>`; fall back to the
+      # detected kind label
+      NAME="$( "$HERDR" agent list 2>/dev/null | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    for a in d.get("result", {}).get("agents", []):
+        if a.get("pane_id") == sys.argv[1]:
+            print(a.get("name") or a.get("agent") or "")
+            sys.exit(0)
+except Exception:
+    pass
+' "$PANE_ID" )"
+      [ -z "$NAME" ] && NAME="$AGENT"
+      LABEL="$NAME ▍ $PANE_ID"
+      log "  -> agent=$AGENT name=$NAME"
     else
       LABEL="▍ $PANE_ID"
       log "  -> agent released/gone, back to plain label"
