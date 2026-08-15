@@ -66,12 +66,9 @@ done
 log "  -> foreground=$FG"
 
 case "$FG" in
-  zsh|-zsh)
-    # zsh: PROMPT and PS1 are the same variable; prepend the ID prefix
-    "$HERDR" pane run "$PANE_ID" "PS1='[$PANE_ID] '" >>"$LOG" 2>&1 || true
-    ;;
-  bash|-bash)
-    "$HERDR" pane run "$PANE_ID" "PS1='[$PANE_ID] '" >>"$LOG" 2>&1 || true
+  zsh|-zsh|bash|-bash)
+    # prepend "[<pane-id>] " to the existing prompt ($PS1 expanded by the remote shell)
+    "$HERDR" pane run "$PANE_ID" "PS1='[$PANE_ID] '\$PS1" >>"$LOG" 2>&1 || true
     ;;
   sh|dash|fish)
     ;;
@@ -80,7 +77,7 @@ esac
 # --- 4. One-line banner inside the pane -----------------------
 case "$FG" in
   zsh|bash|-zsh|-bash|sh|dash|fish)
-    "$HERDR" pane run "$PANE_ID" "printf '\033[2m▍ pane %s\033[0m\n' '$PANE_ID'" >>"$LOG" 2>&1 || true
+    "$HERDR" pane run "$PANE_ID" "echo '▍ pane $PANE_ID'" >>"$LOG" 2>&1 || true
     ;;
 esac
 log "  -> done"
