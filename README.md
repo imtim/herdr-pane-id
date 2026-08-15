@@ -1,18 +1,39 @@
 # herdr-pane-id
 
-Herdr plugin that makes every newly created pane carry its pane ID, so you always
+Herdr plugin that labels every newly created pane with its pane ID, so you always
 know which pane you are looking at (and can target it with `herdr pane run w1:p2 ...`).
 
-What it does on each `pane.created` event:
+## Behavior
 
-1. **UI title** — renames the pane to `▍ <pane-id>` (visible in the herdr tab bar / pane header).
-2. **Prompt prefix** — waits for the pane shell to reach its interactive prompt, then
-   prepends `[<pane-id>] ` to `PS1` for that shell session (bash/zsh; session-local only,
-   no rc files are modified).
-3. **Banner** — prints a dim one-line banner `▍ pane <pane-id>` into the pane.
+On each `pane.created` event, the pane is renamed to `▍ <pane-id>` — the label is
+shown in the herdr UI (pane list / layout). Nothing is typed into the pane, so the
+screen stays completely clean.
 
-If the pane immediately runs a foreground command (e.g. an agent), steps 2–3 are
-skipped; the UI title still gets set.
+## Zero-noise in-pane prompt (recommended)
+
+Herdr already injects `HERDR_PANE_ID` into every pane's environment. Add one line to
+`~/.zshrc` (or `~/.bashrc`) and every prompt shows its pane ID — no plugin event,
+no typed commands, works in agent panes too:
+
+```zsh
+[[ -n "${HERDR_PANE_ID:-}" ]] && PROMPT="[%{$reset_color%}$HERDR_PANE_ID] $PROMPT"
+```
+
+## Optional: prompt prefix without editing rc files
+
+The hook can also run `PS1='[<pane-id>] '...` via `pane run`. It works (bash/zsh),
+but `pane run` simulates typing, so the pane shows **one typed command line** at
+creation. Enable only if that trade-off is acceptable:
+
+```bash
+printf '1' > "$(herdr plugin config-dir pane-id)/prompt-prefix"
+```
+
+Disable again with:
+
+```bash
+printf '0' > "$(herdr plugin config-dir pane-id)/prompt-prefix"
+```
 
 ## Install
 
@@ -20,18 +41,17 @@ skipped; the UI title still gets set.
 herdr plugin link ~/path/to/herdr-pane-id
 ```
 
-The plugin is enabled by default after linking. Verify:
+Verify:
 
 ```bash
 herdr plugin list
 herdr plugin log list --plugin pane-id
 ```
 
-Debug log (event payload, resolved pane id, foreground shell, herdr command errors):
+Debug log (event payload, resolved pane id, failures):
 
 ```bash
-cat "$(herdr plugin config-dir pane-id)/../state/pane-id.log"   # or:
-herdr plugin log list --plugin pane-id
+cat ~/.local/state/herdr/plugins/pane-id/pane-id.log
 ```
 
 ## Uninstall
@@ -42,11 +62,7 @@ herdr plugin unlink pane-id
 
 ## Notes
 
-- Only newly created panes are labeled. Existing panes are left untouched so manual
+- Only newly created panes are labeled; existing panes are left untouched so manual
   titles are not clobbered.
-- If you prefer the ID inside the prompt everywhere (including agent panes), herdr
-  already injects `HERDR_PANE_ID` into every pane's environment — add to `~/.zshrc`:
-
-  ```zsh
-  [[ -n "${HERDR_PANE_ID:-}" ]] && PROMPT="[%{$reset_color%}$HERDR_PANE_ID] $PROMPT"
-  ```
+- Pane IDs change when a pane moves to another workspace; the label is not updated
+  on move.
