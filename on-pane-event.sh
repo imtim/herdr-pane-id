@@ -63,9 +63,18 @@ case "$EVENT" in
       case "$TAB_LABEL" in
         ''|*[!0-9]*) : ;; # not the default numeric label — leave it alone
         *)
+          # the workspace's first tab shows the workspace id (wP); other tabs
+          # get the project name (cwd basename)
+          TAB_NUM="$( "$HERDR" tab get "$TAB_ID" 2>/dev/null | json_get result.tab.number number 2>/dev/null || true)"
           BASE="${CWD##*/}"
-          if [ -n "$BASE" ] && "$HERDR" tab rename "$TAB_ID" "$BASE" >>"$LOG" 2>&1; then
-            log "  -> tab $TAB_ID renamed to $BASE"
+          if [ "$TAB_NUM" = "1" ]; then
+            NEW_LABEL="$(printf '%s' "$EVENT_JSON" | json_get data.pane.workspace_id workspace_id 2>/dev/null || true)"
+            [ -z "$NEW_LABEL" ] && NEW_LABEL="$BASE"
+          else
+            NEW_LABEL="$BASE"
+          fi
+          if [ -n "$NEW_LABEL" ] && "$HERDR" tab rename "$TAB_ID" "$NEW_LABEL" >>"$LOG" 2>&1; then
+            log "  -> tab $TAB_ID renamed to $NEW_LABEL"
           else
             log "  -> tab rename failed (tab=$TAB_ID cwd=$CWD)"
           fi

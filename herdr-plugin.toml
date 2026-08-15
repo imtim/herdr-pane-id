@@ -12,3 +12,6 @@ command = ["bash", "on-pane-event.sh"]
 [[events]]
 on = "pane.agent_detected"
 command = ["bash", "on-pane-event.sh"]
+
+[[startup]]
+command = ["python3", "label-existing-tabs.py"]
