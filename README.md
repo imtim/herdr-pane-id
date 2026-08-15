@@ -16,6 +16,10 @@ screen stays completely clean.
 | `pane.agent_detected` (agent present) | `<agent-name> | pF` |
 | `pane.agent_detected` (released / gone) | `pF` |
 
+A newly created tab is also named after the project (cwd basename of its first
+pane, e.g. `Projects`) instead of the default `1`/`2`/`3` numbering. Manually
+renamed tabs are never touched.
+
 `<agent-name>` is the user-assigned name from `herdr agent start <name>` (what you
 address with `herdr agent prompt <name>`), falling back to the detected agent kind
 (`pi`, `codex`, ...) for unnamed agents.
