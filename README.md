@@ -1,8 +1,9 @@
 # herdr-pane-id
 
-Herdr plugin that labels every pane with its pane ID, plus the agent name once
-herdr detects an agent in the pane — so you always know which pane you are looking
-at (and can target it with `herdr pane run w1:p2 ...` or `herdr agent prompt pi ...`).
+Herdr plugin that labels every pane with its short pane ID (e.g. `pF`), plus the
+agent name once herdr detects an agent (`pi | pF`) — so you always know which pane
+you are looking at (and can target it with `herdr pane run wP:pF ...` or
+`herdr agent prompt pi ...`).
 
 ## Behavior
 
@@ -11,9 +12,9 @@ screen stays completely clean.
 
 | Event | Label |
 | --- | --- |
-| `pane.created` | `▍ <pane-id>` |
-| `pane.agent_detected` (agent present) | `<agent-name> ▍ <pane-id>` |
-| `pane.agent_detected` (released / gone) | `▍ <pane-id>` |
+| `pane.created` | `pF` |
+| `pane.agent_detected` (agent present) | `<agent-name> | pF` |
+| `pane.agent_detected` (released / gone) | `pF` |
 
 `<agent-name>` is the user-assigned name from `herdr agent start <name>` (what you
 address with `herdr agent prompt <name>`), falling back to the detected agent kind

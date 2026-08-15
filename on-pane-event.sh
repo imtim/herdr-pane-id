@@ -2,9 +2,9 @@
 # pane-id plugin: label panes with their pane ID (+ agent name when detected).
 #
 # Handles two events:
-#   pane.created        -> label "▍ <pane_id>"
-#   pane.agent_detected -> label "<agent> ▍ <pane_id>"; back to "▍ <pane_id>"
-#                          when the agent is released or gone
+#   pane.created        -> label "<pane-short-id>"           e.g. "pF"
+#   pane.agent_detected -> label "<agent> | <pane-short-id>" e.g. "pi | pF";
+#                          back to plain when the agent is released or gone
 #
 # Nothing is typed into the pane — the label is herdr-side only (pane rename).
 set -u
@@ -47,9 +47,12 @@ fi
 [ -z "$PANE_ID" ] && { log "$(date '+%F %T') event=$EVENT no pane id"; exit 0; }
 log "$(date '+%F %T') event=$EVENT pane=$PANE_ID json=$EVENT_JSON"
 
+# short pane id: wP:pF -> pF
+SHORT_ID="${PANE_ID##*:}"
+
 case "$EVENT" in
   pane.created)
-    LABEL="▍ $PANE_ID"
+    LABEL="$SHORT_ID"
     ;;
   pane.agent_detected)
     AGENT="$(printf '%s' "$EVENT_JSON" | json_get data.agent agent 2>/dev/null || true)"
@@ -70,10 +73,10 @@ except Exception:
     pass
 ' "$PANE_ID" )"
       [ -z "$NAME" ] && NAME="$AGENT"
-      LABEL="$NAME ▍ $PANE_ID"
+      LABEL="$NAME | $SHORT_ID"
       log "  -> agent=$AGENT name=$NAME"
     else
-      LABEL="▍ $PANE_ID"
+      LABEL="$SHORT_ID"
       log "  -> agent released/gone, back to plain label"
     fi
     ;;
