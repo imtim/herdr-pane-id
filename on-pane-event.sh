@@ -53,34 +53,6 @@ SHORT_ID="${PANE_ID##*:}"
 case "$EVENT" in
   pane.created)
     LABEL="$SHORT_ID"
-    # Name the tab after the project (cwd basename) when it still has the
-    # default numeric label ("1", "2", ...). Manual labels are never touched.
-    TAB_ID="${HERDR_TAB_ID:-}"
-    [ -z "$TAB_ID" ] && TAB_ID="$(printf '%s' "$EVENT_JSON" | json_get data.pane.tab_id tab_id 2>/dev/null || true)"
-    CWD="$(printf '%s' "$EVENT_JSON" | json_get data.pane.cwd cwd 2>/dev/null || true)"
-    if [ -n "$TAB_ID" ] && [ -n "$CWD" ]; then
-      TAB_LABEL="$( "$HERDR" tab get "$TAB_ID" 2>/dev/null | json_get result.tab.label label 2>/dev/null || true)"
-      case "$TAB_LABEL" in
-        ''|*[!0-9]*) : ;; # not the default numeric label — leave it alone
-        *)
-          # the workspace's first tab shows the workspace id (wP); other tabs
-          # get the project name (cwd basename)
-          TAB_NUM="$( "$HERDR" tab get "$TAB_ID" 2>/dev/null | json_get result.tab.number number 2>/dev/null || true)"
-          BASE="${CWD##*/}"
-          if [ "$TAB_NUM" = "1" ]; then
-            NEW_LABEL="$(printf '%s' "$EVENT_JSON" | json_get data.pane.workspace_id workspace_id 2>/dev/null || true)"
-            [ -z "$NEW_LABEL" ] && NEW_LABEL="$BASE"
-          else
-            NEW_LABEL="$BASE"
-          fi
-          if [ -n "$NEW_LABEL" ] && "$HERDR" tab rename "$TAB_ID" "$NEW_LABEL" >>"$LOG" 2>&1; then
-            log "  -> tab $TAB_ID renamed to $NEW_LABEL"
-          else
-            log "  -> tab rename failed (tab=$TAB_ID cwd=$CWD)"
-          fi
-          ;;
-      esac
-    fi
     ;;
   pane.agent_detected)
     AGENT="$(printf '%s' "$EVENT_JSON" | json_get data.agent agent 2>/dev/null || true)"

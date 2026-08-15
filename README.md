@@ -16,14 +16,11 @@ screen stays completely clean.
 | `pane.agent_detected` (agent present) | `<agent-name> | pF` |
 | `pane.agent_detected` (released / gone) | `pF` |
 
-A newly created tab is named automatically instead of getting the default
-`1`/`2`/`3` numbering:
+Tabs keep herdr's default `1`/`2`/`3` numbering — the plugin never renames tabs.
 
-- the workspace's first tab shows the **workspace id** (e.g. `wP`)
-- other tabs show the **project name** (cwd basename of the first pane)
-
-A startup hook applies the same rule to pre-existing tabs that still carry a
-numeric label. Manually renamed tabs are never touched.
+A startup hook prefixes every workspace label with its id (`wP Projects`) so the
+workspace id is always visible in the herdr UI. It is idempotent: labels already
+starting with `<id> ` are left alone.
 
 `<agent-name>` is the user-assigned name from `herdr agent start <name>` (what you
 address with `herdr agent prompt <name>`), falling back to the detected agent kind

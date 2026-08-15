@@ -14,4 +14,4 @@ on = "pane.agent_detected"
 command = ["bash", "on-pane-event.sh"]
 
 [[startup]]
-command = ["python3", "label-existing-tabs.py"]
+command = ["python3", "workspace-id-prefix.py"]
