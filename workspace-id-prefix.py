@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""pane-id plugin startup hook: prefix every workspace label with its id.
+"""pane-id plugin startup hook: append the workspace id to its label.
 
-Makes the workspace display name "wP Projects" (id + name) so the workspace id
-is always visible in the herdr UI. Idempotent: labels already starting with
-"<id> " are left alone, so manual renames that keep the prefix survive, and a
-manual rename like "Projects2" becomes "wP Projects2" on the next start.
+Makes the workspace display name "Projects: wP" (name + id) so the workspace id
+is always visible in the herdr UI. Idempotent: labels already ending with
+": <id>" are left alone. Labels in the old "<id> Name" format are migrated.
 
 Tabs are left at their default 1/2/3 numbering (the plugin never renames tabs).
 """
@@ -38,7 +37,7 @@ def logmsg(msg):
 
 
 def main():
-    logmsg(f"{datetime.datetime.now():%F %T} startup: prefix workspace labels with id")
+    logmsg(f"{datetime.datetime.now():%F %T} startup: append workspace id to label")
     res = run("workspace", "list")
     if not res:
         logmsg("startup: workspace list failed")
@@ -46,9 +45,12 @@ def main():
     for w in res.get("workspaces", []):
         ws_id = w["workspace_id"]
         label = w.get("label", "")
+        suffix = ": " + ws_id
+        if label.endswith(suffix):
+            continue  # already in "Name: id" format
         if label.startswith(ws_id + " "):
-            continue  # already prefixed
-        new_label = f"{ws_id} {label}" if label else ws_id
+            label = label[len(ws_id) + 1:]  # migrate old "id Name" format
+        new_label = f"{label}{suffix}" if label else ws_id
         if run("workspace", "rename", ws_id, new_label) is not None:
             logmsg(f"startup: {ws_id} '{label}' -> '{new_label}'")
         else:

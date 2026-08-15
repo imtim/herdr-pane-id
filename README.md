@@ -18,9 +18,10 @@ screen stays completely clean.
 
 Tabs keep herdr's default `1`/`2`/`3` numbering — the plugin never renames tabs.
 
-A startup hook prefixes every workspace label with its id (`wP Projects`) so the
-workspace id is always visible in the herdr UI. It is idempotent: labels already
-starting with `<id> ` are left alone.
+A startup hook appends the workspace id to each workspace label (`Projects: wP`)
+so the workspace id is always visible in the herdr UI. It is idempotent: labels
+already ending with `: <id>` are left alone, and the old `<id> Name` format is
+migrated automatically.
 
 `<agent-name>` is the user-assigned name from `herdr agent start <name>` (what you
 address with `herdr agent prompt <name>`), falling back to the detected agent kind
