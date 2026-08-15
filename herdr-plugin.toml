@@ -1,10 +1,14 @@
 id = "pane-id"
 name = "Pane ID"
-version = "0.1.0"
+version = "0.2.0"
 min_herdr_version = "0.8.0"
-description = "Label every newly created pane with its pane ID: UI title, prompt prefix, and a one-line banner"
+description = "Label every pane with its pane ID; append the agent name once herdr detects one"
 platforms = ["linux", "macos"]
 
 [[events]]
 on = "pane.created"
-command = ["bash", "on-pane-created.sh"]
+command = ["bash", "on-pane-event.sh"]
+
+[[events]]
+on = "pane.agent_detected"
+command = ["bash", "on-pane-event.sh"]
