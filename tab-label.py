@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
-"""Relabel tabs so a single-pane tab shows "<number>: <tab id>: <pane id>".
+"""Relabel tabs compactly.
 
-Example: a tab with herdr's default label "3", tab id "wP:t5" and one pane
-"wP:pP" is renamed to "3: t5: pP". When the tab gains a second pane the
-label reverts to the plain number ("3"). Manual (non-numeric) tab labels
-are never touched.
+A single-pane tab with herdr's default numbering is renamed to
+"<number>_<tab-id>:<pane-id>" (e.g. "1_t1:p1"); a tab with two or more panes
+shows its pane count instead: "1_t1(2)". Manual (non-numeric) tab labels are
+never touched.
 
 The base number always comes from the tab's own label: herdr's default tab
 numbering (a plain integer) or the integer prefix of a label this plugin set
-("3: t5: pP" -> base "3"). This keeps the label consistent with what the tab
-bar displays, even when herdr's internal tab ordinals drift as tabs close.
+("1_t1:p1" -> base "1"). This keeps the label consistent with what the tab bar
+displays, even when herdr's internal tab ordinals drift as tabs close.
 
 Idempotent, so it is safe to call from every pane/tab event and at startup.
+Labels from older plugin versions ("3: t5: pP" and "3: pP") are upgraded
+automatically.
 """
 import datetime
 import json
@@ -24,9 +26,10 @@ HERDR = os.environ.get("HERDR_BIN_PATH", "herdr")
 STATE_DIR = os.environ.get("HERDR_PLUGIN_STATE_DIR", "/tmp")
 LOG = os.path.join(STATE_DIR, "pane-id.log")
 
-DEFAULT_LABEL = re.compile(r"^[0-9]+$")                       # herdr default tab numbering
-OWN_LABEL = re.compile(r"^([0-9]+): t[0-9A-Za-z]+: p[0-9A-Za-z]+$")  # current format
-OLD_LABEL = re.compile(r"^([0-9]+): p[0-9A-Za-z]+$")         # pre-0.3.1 format, upgraded
+DEFAULT_LABEL = re.compile(r"^[0-9]+$")                                   # herdr default tab numbering
+OWN_LABEL = re.compile(r"^([0-9]+)_t[0-9A-Za-z]+(:p[0-9A-Za-z]+|\(\d+\))$")  # current format
+LEGACY_TAB_LABEL = re.compile(r"^([0-9]+): t[0-9A-Za-z]+: p[0-9A-Za-z]+$")   # 0.3.1, upgraded
+LEGACY_PANE_LABEL = re.compile(r"^([0-9]+): p[0-9A-Za-z]+$")                 # 0.3.0, upgraded
 
 
 def run(*args):
@@ -47,8 +50,8 @@ def logmsg(msg):
         pass
 
 
-def short(pane_id):
-    return pane_id.split(":")[-1]
+def short(pid):
+    return pid.split(":")[-1]
 
 
 def reconcile():
@@ -72,20 +75,21 @@ def reconcile():
             if DEFAULT_LABEL.match(label):
                 base = label
             else:
-                m = OWN_LABEL.match(label)
-                if not m:
-                    m = OLD_LABEL.match(label)  # upgrade pre-0.3.1 "3: pP" labels
+                m = OWN_LABEL.match(label) or LEGACY_TAB_LABEL.match(label) or LEGACY_PANE_LABEL.match(label)
                 if not m:
                     continue  # manual label — leave it alone
                 base = m.group(1)
             tab_panes = panes_by_tab.get(t.get("tab_id"), [])
-            if len(tab_panes) == 1:
-                new_label = f"{base}: {short(t['tab_id'])}: {short(tab_panes[0]['pane_id'])}"
+            count = len(tab_panes)
+            if count == 1:
+                new_label = f"{base}_{short(t['tab_id'])}:{short(tab_panes[0]['pane_id'])}"
+            elif count >= 2:
+                new_label = f"{base}_{short(t['tab_id'])}({count})"
             else:
-                new_label = base
+                new_label = base  # no panes left (should not happen)
             if new_label != label:
                 if run("tab", "rename", t["tab_id"], new_label) is not None:
-                    logmsg(f"{t['tab_id']} '{label}' -> '{new_label}' ({len(tab_panes)} panes)")
+                    logmsg(f"{t['tab_id']} '{label}' -> '{new_label}' ({count} panes)")
                 else:
                     logmsg(f"rename failed for {t['tab_id']} '{label}' -> '{new_label}'")
 
