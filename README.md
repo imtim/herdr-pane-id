@@ -5,15 +5,15 @@ agent name once herdr detects an agent (`pi | pF`) — so you always know which 
 you are looking at (and can target it with `herdr pane run wP:pF ...` or
 `herdr agent prompt pi ...`).
 
-Tabs follow the same idea: a tab with exactly one pane shows its tab number plus
-the tab's and the pane's short IDs (`3: t5: pW`), so a single-window tab always
-tells you which tab and which pane it is. Once a second pane is added the tab
-reverts to the plain number.
+Tabs follow the same idea in a compact form: a tab with exactly one pane shows
+`1_t1:p1` (number, tab id, pane id); once a second pane is added it switches to
+`1_t1(2)` with the pane count. Workspaces show `Projects:wP` (name + id), also
+for workspaces created after herdr started.
 
 ## Behavior
 
 Nothing is typed into the pane — labels are herdr-side only (`pane rename` /
-`tab rename`), so the screen stays completely clean.
+`tab rename` / `workspace rename`), so the screen stays completely clean.
 
 | Event | Label |
 | --- | --- |
@@ -25,21 +25,29 @@ Tab labels (reconciled on every pane/tab event and at startup):
 
 | Tab state | Tab label |
 | --- | --- |
-| exactly one pane, default numbering | `3: t5: pW` |
-| two or more panes | `3` (plain number restored) |
+| exactly one pane, default numbering | `1_t1:p1` |
+| two or more panes | `1_t1(2)` (pane count) |
 | manual (non-numeric) label | untouched, always |
 
-The base number always comes from the tab's own label, so `3: t5: pW` stays
+The base number always comes from the tab's own label, so `1_t1:p1` stays
 consistent with what the tab bar already displayed; manual labels are never
 clobbered. The reconcile (`tab-label.py`) is idempotent and self-heals: if the
 single pane in a tab changes, the label is updated on the next event. Labels
-from older plugin versions (`3: pW` without the tab id) are upgraded
-automatically.
+from older plugin versions (`3: t5: pP`, `3: pP`) are upgraded automatically.
 
-A startup hook appends the workspace id to each workspace label (`Projects: wP`)
+Workspace labels (startup + every `workspace.created` event):
+
+| Workspace state | Workspace label |
+| --- | --- |
+| default | `Projects:wP` |
+| label already ends with `:<id>` | untouched (idempotent) |
+| legacy `Name: id` / `id Name` | migrated to `Name:id` |
+
+A startup hook appends the workspace id to each workspace label (`Projects:wP`)
 so the workspace id is always visible in the herdr UI. It is idempotent: labels
-already ending with `: <id>` are left alone, and the old `<id> Name` format is
-migrated automatically.
+already ending with `:<id>` are left alone, and legacy `Name: id` / `id Name`
+formats are migrated automatically. A `workspace.created` event hook does the
+same for workspaces created after herdr started.
 
 `<agent-name>` is the user-assigned name from `herdr agent start <name>` (what you
 address with `herdr agent prompt <name>`), falling back to the detected agent kind
@@ -88,6 +96,7 @@ herdr plugin unlink pane-id
 - Tab labels are reconciled on `pane.created` / `pane.closed` / `pane.moved` /
   `tab.created` / `pane.agent_detected` and once at startup — the full reconcile
   covers panes moved between tabs as well.
+- Workspace labels are reconciled on `workspace.created` and once at startup.
 - `herdr agent rename` does not emit an event, so the label keeps the old name until
   the next detection event (e.g. agent exit or restart).
 - Pane IDs change when a pane moves to another workspace; the label is not updated

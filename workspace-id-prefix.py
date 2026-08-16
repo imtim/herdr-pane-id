@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""pane-id plugin startup hook: append the workspace id to its label.
+"""pane-id plugin workspace hook: append the workspace id to its label.
 
-Makes the workspace display name "Projects: wP" (name + id) so the workspace id
-is always visible in the herdr UI. Idempotent: labels already ending with
-": <id>" are left alone. Labels in the old "<id> Name" format are migrated.
+Makes the workspace display name "Projects:wP" (name + id, no space) so the
+workspace id is always visible in the herdr UI. Idempotent: labels already
+ending with ":<id>" are left alone. Legacy formats are migrated: "Name: wP"
+(with a space) and the older "wP Name" ordering both become "Name:wP".
 
-Tabs are left at their default 1/2/3 numbering (the plugin never renames tabs).
+Runs at startup and on every workspace.created event, so newly created
+workspaces pick up their id as well.
 """
 import datetime
 import json
@@ -37,24 +39,27 @@ def logmsg(msg):
 
 
 def main():
-    logmsg(f"{datetime.datetime.now():%F %T} startup: append workspace id to label")
+    logmsg(f"{datetime.datetime.now():%F %T} workspace hook: append workspace id to label")
     res = run("workspace", "list")
     if not res:
-        logmsg("startup: workspace list failed")
+        logmsg("workspace: list failed")
         return 0
     for w in res.get("workspaces", []):
         ws_id = w["workspace_id"]
         label = w.get("label", "")
-        suffix = ": " + ws_id
+        suffix = ":" + ws_id
         if label.endswith(suffix):
-            continue  # already in "Name: id" format
-        if label.startswith(ws_id + " "):
+            continue  # already in "Name:id" format
+        legacy_space = ": " + ws_id
+        if label.endswith(legacy_space):
+            label = label[: -len(legacy_space)]  # migrate "Name: id" -> "Name"
+        elif label.startswith(ws_id + " "):
             label = label[len(ws_id) + 1:]  # migrate old "id Name" format
         new_label = f"{label}{suffix}" if label else ws_id
         if run("workspace", "rename", ws_id, new_label) is not None:
-            logmsg(f"startup: {ws_id} '{label}' -> '{new_label}'")
+            logmsg(f"workspace: {ws_id} '{label}' -> '{new_label}'")
         else:
-            logmsg(f"startup: rename failed for {ws_id}")
+            logmsg(f"workspace: rename failed for {ws_id}")
     return 0
 
 

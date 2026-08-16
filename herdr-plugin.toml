@@ -1,8 +1,8 @@
 id = "pane-id"
 name = "Pane ID"
-version = "0.3.1"
+version = "0.4.0"
 min_herdr_version = "0.8.0"
-description = "Label every pane with its pane ID (plus agent name); single-pane tabs show '<number>: <tab-id>: <pane-id>'"
+description = "Label every pane with its pane ID (plus agent name); compact tab labels '<num>_<tab>:<pane>' / '<num>_<tab>(<n>)'; workspace labels get ':wP' id"
 platforms = ["linux", "macos"]
 
 [[events]]
@@ -24,6 +24,10 @@ command = ["bash", "on-pane-event.sh"]
 [[events]]
 on = "pane.agent_detected"
 command = ["bash", "on-pane-event.sh"]
+
+[[events]]
+on = "workspace.created"
+command = ["python3", "workspace-id-prefix.py"]
 
 [[startup]]
 command = ["python3", "workspace-id-prefix.py"]
