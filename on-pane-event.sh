@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
-# pane-id plugin: label panes with their pane ID (+ agent name when detected).
+# pane-id plugin: label panes with their pane ID (+ agent name when detected),
+# and keep single-pane tab labels in sync via tab-label.py.
 #
 # Handles two events:
 #   pane.created        -> label "<pane-short-id>"           e.g. "pF"
 #   pane.agent_detected -> label "<agent> | <pane-short-id>" e.g. "pi | pF";
 #                          back to plain when the agent is released or gone
+#
+# On every event, tab-label.py reconciles tab labels so a tab with exactly one
+# pane reads "<number>: <pane-short-id>" (e.g. "3: pW") and reverts to the
+# plain number once a second pane appears. It is also run as a startup hook.
 #
 # Nothing is typed into the pane — the label is herdr-side only (pane rename).
 set -u
@@ -38,6 +43,15 @@ sys.exit(1)
 
 EVENT="${HERDR_PLUGIN_EVENT:-}"
 EVENT_JSON="${HERDR_PLUGIN_EVENT_JSON:-}"
+
+# --- Tab labels: single-pane tab shows "<number>: <pane-id>" --
+# Runs for every event (pane.created/closed/moved, tab.created,
+# pane.agent_detected); tab-label.py is idempotent and only touches tabs
+# whose label is herdr's default numbering or a label this plugin set.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "$SCRIPT_DIR/tab-label.py" ]; then
+  python3 "$SCRIPT_DIR/tab-label.py" >>"$LOG" 2>&1 || log "$(date '+%F %T') tab reconcile failed"
+fi
 
 # --- Resolve the pane id --------------------------------------
 PANE_ID="${HERDR_PANE_ID:-}"

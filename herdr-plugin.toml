@@ -1,12 +1,24 @@
 id = "pane-id"
 name = "Pane ID"
-version = "0.2.0"
+version = "0.3.0"
 min_herdr_version = "0.8.0"
-description = "Label every pane with its pane ID; append the agent name once herdr detects one"
+description = "Label every pane with its pane ID (plus agent name); single-pane tabs show '<number>: <pane-id>'"
 platforms = ["linux", "macos"]
 
 [[events]]
 on = "pane.created"
+command = ["bash", "on-pane-event.sh"]
+
+[[events]]
+on = "pane.closed"
+command = ["bash", "on-pane-event.sh"]
+
+[[events]]
+on = "pane.moved"
+command = ["bash", "on-pane-event.sh"]
+
+[[events]]
+on = "tab.created"
 command = ["bash", "on-pane-event.sh"]
 
 [[events]]
@@ -15,3 +27,6 @@ command = ["bash", "on-pane-event.sh"]
 
 [[startup]]
 command = ["python3", "workspace-id-prefix.py"]
+
+[[startup]]
+command = ["python3", "tab-label.py"]
