@@ -6,8 +6,9 @@ you are looking at (and can target it with `herdr pane run wP:pF ...` or
 `herdr agent prompt pi ...`).
 
 Tabs follow the same idea: a tab with exactly one pane shows its tab number plus
-the pane's short ID (`3: pW`), so a single-window tab always tells you which pane
-it is. Once a second pane is added the tab reverts to the plain number.
+the tab's and the pane's short IDs (`3: t5: pW`), so a single-window tab always
+tells you which tab and which pane it is. Once a second pane is added the tab
+reverts to the plain number.
 
 ## Behavior
 
@@ -24,14 +25,16 @@ Tab labels (reconciled on every pane/tab event and at startup):
 
 | Tab state | Tab label |
 | --- | --- |
-| exactly one pane, default numbering | `3: pW` |
+| exactly one pane, default numbering | `3: t5: pW` |
 | two or more panes | `3` (plain number restored) |
 | manual (non-numeric) label | untouched, always |
 
-The base number always comes from the tab's own label, so `3: pW` stays consistent
-with what the tab bar already displayed; manual labels are never clobbered. The
-reconcile (`tab-label.py`) is idempotent and self-heals: if the single pane in a
-tab changes, the label is updated on the next event.
+The base number always comes from the tab's own label, so `3: t5: pW` stays
+consistent with what the tab bar already displayed; manual labels are never
+clobbered. The reconcile (`tab-label.py`) is idempotent and self-heals: if the
+single pane in a tab changes, the label is updated on the next event. Labels
+from older plugin versions (`3: pW` without the tab id) are upgraded
+automatically.
 
 A startup hook appends the workspace id to each workspace label (`Projects: wP`)
 so the workspace id is always visible in the herdr UI. It is idempotent: labels

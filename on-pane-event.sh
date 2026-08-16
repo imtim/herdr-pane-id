@@ -8,8 +8,8 @@
 #                          back to plain when the agent is released or gone
 #
 # On every event, tab-label.py reconciles tab labels so a tab with exactly one
-# pane reads "<number>: <pane-short-id>" (e.g. "3: pW") and reverts to the
-# plain number once a second pane appears. It is also run as a startup hook.
+# pane reads "<number>: <tab-id>: <pane-id>" (e.g. "3: t5: pW") and reverts to
+# the plain number once a second pane appears. It is also run as a startup hook.
 #
 # Nothing is typed into the pane — the label is herdr-side only (pane rename).
 set -u
@@ -44,7 +44,7 @@ sys.exit(1)
 EVENT="${HERDR_PLUGIN_EVENT:-}"
 EVENT_JSON="${HERDR_PLUGIN_EVENT_JSON:-}"
 
-# --- Tab labels: single-pane tab shows "<number>: <pane-id>" --
+# --- Tab labels: single-pane tab shows "<number>: <tab-id>: <pane-id>" -
 # Runs for every event (pane.created/closed/moved, tab.created,
 # pane.agent_detected); tab-label.py is idempotent and only touches tabs
 # whose label is herdr's default numbering or a label this plugin set.
