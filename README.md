@@ -91,13 +91,13 @@ no typed commands, works in agent panes too:
 
 herdr has no built-in plugin settings API (plugin v1), so this plugin reads a
 `config.toml` from its config directory (printed by `herdr plugin config-dir
-pane-id`; env: `$HERDR_PLUGIN_CONFIG_DIR`). A commented template is seeded
-there on first use, and edits are picked up on the next event or watcher
-cycle — no restart needed.
+pane-id`; env: `$HERDR_PLUGIN_CONFIG_DIR`). A fully commented template with
+examples is seeded there on first use, and edits are picked up on the next
+event or watcher cycle — no restart needed.
 
 ```toml
 [behavior]
-# Keep the id visible even after a manual rename, per label type:
+# Keep the id visible even after a manual rename?
 #   true  -> "MyName:wP" / "MyTab:t2" / "MyPane:pF"   (default)
 #   false -> a manual rename hides the id again
 workspace = true
@@ -105,22 +105,23 @@ tab = true
 pane = true
 
 [format.workspace]
-# Separator between the workspace name and its id: ":wP", "_wP", " wP", ...
-separator = ":"
+separator = ":"          # "trading-manager:wR" / "trading-manager_wR" / ...
 
 [format.tab]
-# Separator between the tab name and its id: ":t2", "_t2", ...
-separator = ":"
+separator = ":"          # "1_t1:p1" (between tab id and pane id)
+number_separator = "_"    # "1_t1:p1" (between number and tab id, "-" gives "1-t1:p1")
 
 [format.pane]
-# Separator between the pane name and its id: ":pF", "_pF", ...
-separator = ":"
+separator = ":"          # "MyPane:pF"
 ```
 
-`always_visible = false` only affects manual labels: auto-managed labels
+Every `always_visible`/`separator` is per-type, so styles can be mixed, e.g.
+`workspace = false` hides the workspace id after a manual rename while tab and
+pane keep theirs. `false` only affects manual labels: auto-managed labels
 (`pF`, `pi | pF`, `1_t1:p1`, `<derived>:wP`) keep showing the ids. Pre-0.8
 configs using flat `always_visible` / `separator` keys still work and apply
-to all three types.
+to all three types; labels written under a previous custom separator migrate
+automatically when the config changes.
 
 ## Requirements
 

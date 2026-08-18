@@ -86,7 +86,7 @@ for p in res.get("panes", []):
     short_id = pane_id.split(":")[-1]
     if AUTO.match(label.strip()):
         continue  # plugin-managed label (plain id or '<agent> | id')
-    if label.endswith(SEP + short_id) or label.endswith(":" + short_id):
+    if re.search(r"[^0-9A-Za-z]" + re.escape(short_id) + r"$", label):
         continue  # manual label already carries its id (any separator)
     if not AV:
         continue  # configured: manual renames hide the id
@@ -154,7 +154,7 @@ except Exception:
       if [ "$PANE_AV" = "false" ]; then
         exit 0  # configured: manual renames hide the id
       fi
-      if [ -n "$CUR" ] && ! printf '%s' "$CUR" | grep -qE "(:|_|${PANE_SEP})${SHORT_ID}$"; then
+      if [ -n "$CUR" ] && ! printf '%s' "$CUR" | grep -qE "[^[:alnum:]]${SHORT_ID}$"; then
         LABEL="$CUR${PANE_SEP}$SHORT_ID"
         log "  -> manual label '$CUR', appended pane id"
       else

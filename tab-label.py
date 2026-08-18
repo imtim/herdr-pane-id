@@ -32,10 +32,14 @@ LOG = os.path.join(STATE_DIR, "pane-id.log")
 
 _CFG = plugin_config.load()
 TAB_SEP = _CFG["format"]["tab"]["separator"]
+TAB_NS = _CFG["format"]["tab"]["number_separator"]
 TAB_AV = _CFG["behavior"]["tab"]
 
 DEFAULT_LABEL = re.compile(r"^[0-9]+$")                                                     # herdr default tab numbering
-OWN_LABEL = re.compile(r"^([0-9]+)_t[0-9A-Za-z]+(?:(?::|_)p[0-9A-Za-z]+|\(\d+\))$")  # current format (accepts ':' or '_' separator)
+# Current format; the number/tab/pane separators accept any non-alphanumeric
+# separator (":", "_", "-", " ", ...) so labels written under a previous
+# custom separator still migrate cleanly.
+OWN_LABEL = re.compile(r"^([0-9]+)[^0-9A-Za-z]+t[0-9A-Za-z]+(?:[^0-9A-Za-z]+p[0-9A-Za-z]+|\(\d+\))$")
 LEGACY_TAB_LABEL = re.compile(r"^([0-9]+): t[0-9A-Za-z]+: p[0-9A-Za-z]+$")   # 0.3.1, upgraded
 LEGACY_PANE_LABEL = re.compile(r"^([0-9]+): p[0-9A-Za-z]+$")                 # 0.3.0, upgraded
 
@@ -91,7 +95,7 @@ def reconcile():
                     if not TAB_AV:
                         continue
                     short_tid = short(t["tab_id"])
-                    if any(label.endswith(s + short_tid) for s in (TAB_SEP, ":", "_")):
+                    if re.search(r"[^0-9A-Za-z]" + re.escape(short_tid) + r"$", label):
                         continue
                     new_label = f"{label}{TAB_SEP}{short_tid}"
                     if new_label != label and run("tab", "rename", t["tab_id"], new_label) is not None:
@@ -101,9 +105,9 @@ def reconcile():
             tab_panes = panes_by_tab.get(t.get("tab_id"), [])
             count = len(tab_panes)
             if count == 1:
-                new_label = f"{base}_{short(t['tab_id'])}{TAB_SEP}{short(tab_panes[0]['pane_id'])}"
+                new_label = f"{base}{TAB_NS}{short(t['tab_id'])}{TAB_SEP}{short(tab_panes[0]['pane_id'])}"
             elif count >= 2:
-                new_label = f"{base}_{short(t['tab_id'])}({count})"
+                new_label = f"{base}{TAB_NS}{short(t['tab_id'])}({count})"
             else:
                 new_label = base  # no panes left (should not happen)
             if new_label != label:

@@ -168,11 +168,17 @@ def root_pane_cwd(panes):
 # --- label parsing ---------------------------------------------------------
 
 def split_label(label, ws_id, sep=":"):
-    """Return (base, had_suffix). Accepts 'Name:id' (current separator or the
-    historical ':' one) and legacy 'Name: id' / 'id Name'."""
+    """Return (base, had_suffix). Accepts 'Name:id' with the current separator,
+    the historical ':' / '_' ones, or any single non-alphanumeric separator
+    (labels written under a previous custom separator), plus legacy
+    'Name: id' / 'id Name' formats."""
     for s in (sep, ":", "_"):
         if label.endswith(s + ws_id):
             return label[: -len(ws_id) - len(s)], True
+    if label.endswith(ws_id) and len(label) > len(ws_id):
+        prev = label[-len(ws_id) - 1]
+        if not prev.isalnum():
+            return label[: -len(ws_id) - 1], True
     if label.endswith(": " + ws_id):  # legacy 'Name: id'
         return label[: -len(ws_id) - 2], True
     if label.startswith(ws_id + " "):  # legacy 'id Name'
