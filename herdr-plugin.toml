@@ -1,8 +1,8 @@
 id = "pane-id"
 name = "Pane ID"
-version = "0.5.0"
+version = "0.6.0"
 min_herdr_version = "0.8.0"
-description = "Label every pane with its pane ID (plus agent name); compact tab labels '<num>_<tab>:<pane>' / '<num>_<tab>(<n>)'; workspace labels '<name>:wP' follow the root pane folder"
+description = "Label every pane with its pane ID (plus agent name); compact tab labels; workspace labels '<name>:wP' follow the root pane folder; tab/pane/workspace ids always stay visible even after manual renames"
 platforms = ["linux", "macos"]
 
 [[events]]
@@ -30,6 +30,10 @@ on = "tab.created"
 command = ["bash", "on-pane-event.sh"]
 
 [[events]]
+on = "tab.renamed"
+command = ["python3", "tab-label.py"]
+
+[[events]]
 on = "pane.agent_detected"
 command = ["bash", "on-pane-event.sh"]
 
@@ -50,3 +54,6 @@ command = ["python3", "workspace-sync.py"]
 
 [[startup]]
 command = ["python3", "tab-label.py"]
+
+[[startup]]
+command = ["bash", "on-pane-event.sh", "--reconcile"]
