@@ -2,8 +2,9 @@
 
 Herdr plugin that labels every pane with its short pane ID (e.g. `pF`), plus the
 agent name once herdr detects an agent (`pi | pF`) — so you always know which pane
-you are looking at (and can target it with `herdr pane run wP:pF ...` or
-`herdr agent prompt pi ...`).
+you are looking at, and can target it from anywhere: `herdr pane run wP:pF ...`,
+`herdr agent prompt pi ...`, or from another agent pane (pairs with the
+[herdr agent skill](https://herdr.dev/docs/agent-skill/)).
 
 Tabs follow the same idea in a compact form: a tab with exactly one pane shows
 `1_t1:p1` (number, tab id, pane id); once a second pane is added it switches to
