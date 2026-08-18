@@ -23,12 +23,19 @@ import re
 import subprocess
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import plugin_config  # noqa: E402
+
 HERDR = os.environ.get("HERDR_BIN_PATH", "herdr")
 STATE_DIR = os.environ.get("HERDR_PLUGIN_STATE_DIR", "/tmp")
 LOG = os.path.join(STATE_DIR, "pane-id.log")
 
-DEFAULT_LABEL = re.compile(r"^[0-9]+$")                                   # herdr default tab numbering
-OWN_LABEL = re.compile(r"^([0-9]+)_t[0-9A-Za-z]+(:p[0-9A-Za-z]+|\(\d+\))$")  # current format
+_CFG = plugin_config.load()
+SEP = _CFG["format"]["separator"]
+ALWAYS_VISIBLE = _CFG["behavior"]["always_visible"]
+
+DEFAULT_LABEL = re.compile(r"^[0-9]+$")                                                     # herdr default tab numbering
+OWN_LABEL = re.compile(r"^([0-9]+)_t[0-9A-Za-z]+(?:(?::|_)p[0-9A-Za-z]+|\(\d+\))$")  # current format (accepts ':' or '_' separator)
 LEGACY_TAB_LABEL = re.compile(r"^([0-9]+): t[0-9A-Za-z]+: p[0-9A-Za-z]+$")   # 0.3.1, upgraded
 LEGACY_PANE_LABEL = re.compile(r"^([0-9]+): p[0-9A-Za-z]+$")                 # 0.3.0, upgraded
 
@@ -78,12 +85,15 @@ def reconcile():
             else:
                 m = OWN_LABEL.match(label) or LEGACY_TAB_LABEL.match(label) or LEGACY_PANE_LABEL.match(label)
                 if not m:
-                    # manual label: keep the user's name, append the short tab
-                    # id so the tab id always stays visible ("MyTab" -> "MyTab:t2")
-                    short_tid = short(t["tab_id"])
-                    if label.endswith(":" + short_tid):
+                    # manual label: keep the user's name; append the short tab id
+                    # ("MyTab" -> "MyTab:t2") so the id stays visible — unless
+                    # always_visible is disabled
+                    if not ALWAYS_VISIBLE:
                         continue
-                    new_label = f"{label}:{short_tid}"
+                    short_tid = short(t["tab_id"])
+                    if any(label.endswith(s + short_tid) for s in (SEP, ":", "_")):
+                        continue
+                    new_label = f"{label}{SEP}{short_tid}"
                     if new_label != label and run("tab", "rename", t["tab_id"], new_label) is not None:
                         logmsg(f"{t['tab_id']} '{label}' -> '{new_label}' (manual + id)")
                     continue
@@ -91,7 +101,7 @@ def reconcile():
             tab_panes = panes_by_tab.get(t.get("tab_id"), [])
             count = len(tab_panes)
             if count == 1:
-                new_label = f"{base}_{short(t['tab_id'])}:{short(tab_panes[0]['pane_id'])}"
+                new_label = f"{base}_{short(t['tab_id'])}{SEP}{short(tab_panes[0]['pane_id'])}"
             elif count >= 2:
                 new_label = f"{base}_{short(t['tab_id'])}({count})"
             else:
