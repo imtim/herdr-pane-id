@@ -1,8 +1,8 @@
 id = "pane-id"
 name = "Pane ID"
-version = "0.4.0"
+version = "0.5.0"
 min_herdr_version = "0.8.0"
-description = "Label every pane with its pane ID (plus agent name); compact tab labels '<num>_<tab>:<pane>' / '<num>_<tab>(<n>)'; workspace labels get ':wP' id"
+description = "Label every pane with its pane ID (plus agent name); compact tab labels '<num>_<tab>:<pane>' / '<num>_<tab>(<n>)'; workspace labels '<name>:wP' follow the root pane folder"
 platforms = ["linux", "macos"]
 
 [[events]]
@@ -14,8 +14,16 @@ on = "pane.closed"
 command = ["bash", "on-pane-event.sh"]
 
 [[events]]
+on = "pane.closed"
+command = ["python3", "workspace-sync.py"]
+
+[[events]]
 on = "pane.moved"
 command = ["bash", "on-pane-event.sh"]
+
+[[events]]
+on = "pane.moved"
+command = ["python3", "workspace-sync.py"]
 
 [[events]]
 on = "tab.created"
@@ -27,10 +35,18 @@ command = ["bash", "on-pane-event.sh"]
 
 [[events]]
 on = "workspace.created"
-command = ["python3", "workspace-id-prefix.py"]
+command = ["python3", "workspace-sync.py"]
+
+[[events]]
+on = "workspace.renamed"
+command = ["python3", "workspace-sync.py"]
+
+[[events]]
+on = "workspace.updated"
+command = ["python3", "workspace-sync.py"]
 
 [[startup]]
-command = ["python3", "workspace-id-prefix.py"]
+command = ["python3", "workspace-sync.py"]
 
 [[startup]]
 command = ["python3", "tab-label.py"]

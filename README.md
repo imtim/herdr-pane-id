@@ -35,19 +35,33 @@ clobbered. The reconcile (`tab-label.py`) is idempotent and self-heals: if the
 single pane in a tab changes, the label is updated on the next event. Labels
 from older plugin versions (`3: t5: pP`, `3: pP`) are upgraded automatically.
 
-Workspace labels (startup + every `workspace.created` event):
+Workspace labels (reconciled at startup, on `workspace.created` /
+`workspace.renamed` / `workspace.updated` / `pane.closed` / `pane.moved`, and by
+a small watcher loop every few seconds):
 
 | Workspace state | Workspace label |
 | --- | --- |
-| default | `Projects:wP` |
-| label already ends with `:<id>` | untouched (idempotent) |
+| auto-managed | `<derived>:wP` |
+| manually renamed | `<your-name>:wP` (suffix re-appended) |
 | legacy `Name: id` / `id Name` | migrated to `Name:id` |
 
-A startup hook appends the workspace id to each workspace label (`Projects:wP`)
-so the workspace id is always visible in the herdr UI. It is idempotent: labels
-already ending with `:<id>` are left alone, and legacy `Name: id` / `id Name`
-formats are migrated automatically. A `workspace.created` event hook does the
-same for workspaces created after herdr started.
+The auto-managed base follows the root pane's folder, using the same derivation
+herdr uses natively: the enclosing git repo root name when the folder is inside
+a repo, otherwise the folder basename (`~` for `$HOME`). herdr itself only
+follows the folder while the label is not a custom name — once renamed, it pins
+the label forever. This plugin re-derives instead: it keeps the `:wP` suffix
+visible in every state, and a manual rename keeps your base while the suffix is
+re-appended within seconds.
+
+Why a watcher loop: herdr emits no event when a pane's cwd changes (OSC 7 `cd`
+reports update the render path only), so folder-following cannot be purely
+event-driven. `workspace-sync.py` reconciles on every workspace/pane event it
+can hook, and a detached watcher (`--watch`) spawned by the startup hook polls
+every 5 seconds to catch plain `cd`s. The watcher exits on its own when herdr
+is unreachable for a while and is re-spawned at the next startup; it never
+duplicates (pid file check). Disable it with `HERDR_PANE_ID_WATCHER=0`, tune it
+with `HERDR_PANE_ID_WATCH_INTERVAL` (seconds) and
+`HERDR_PANE_ID_WATCH_MAX_FAILS`.
 
 `<agent-name>` is the user-assigned name from `herdr agent start <name>` (what you
 address with `herdr agent prompt <name>`), falling back to the detected agent kind
@@ -63,10 +77,24 @@ no typed commands, works in agent panes too:
 [[ -n "${HERDR_PANE_ID:-}" ]] && PROMPT="[%{$reset_color%}$HERDR_PANE_ID] $PROMPT"
 ```
 
+## Requirements
+
+- herdr >= 0.8.0
+- python3 (for `tab-label.py` and `workspace-sync.py`)
+
 ## Install
 
+From GitHub (once published):
+
 ```bash
-herdr plugin link ~/path/to/herdr-pane-id
+herdr plugin install <github-user>/herdr-pane-id
+```
+
+Local development:
+
+```bash
+git clone https://github.com/<github-user>/herdr-pane-id.git
+herdr plugin link /path/to/herdr-pane-id
 ```
 
 Verify:
@@ -76,11 +104,22 @@ herdr plugin list
 herdr plugin log list --plugin pane-id
 ```
 
-Debug log (events, resolved pane id, agent name, rename failures):
+Debug log (events, resolved pane id, agent name, rename failures, watcher)
+and sync state (per-workspace `mode: auto|manual` + last base written by the
+plugin, so manual names survive reconciliation) live in the plugin state
+directory, usually `~/.local/state/herdr/plugins/pane-id/` on macOS/Linux:
 
 ```bash
-cat ~/.local/state/herdr/plugins/pane-id/pane-id.log
+cat "${HERDR_PLUGIN_STATE_DIR:-~/.local/state/herdr/plugins/pane-id}"/pane-id.log
+cat "${HERDR_PLUGIN_STATE_DIR:-~/.local/state/herdr/plugins/pane-id}"/workspace-bases.json
 ```
+
+## Publishing to the herdr marketplace
+
+The herdr marketplace automatically indexes public GitHub repositories tagged
+with the `herdr-plugin` topic (refresh every 30 minutes). To make this plugin
+installable as `herdr plugin install <user>/herdr-pane-id`, add that topic in
+the repository settings after publishing.
 
 ## Uninstall
 
@@ -96,10 +135,17 @@ herdr plugin unlink pane-id
 - Tab labels are reconciled on `pane.created` / `pane.closed` / `pane.moved` /
   `tab.created` / `pane.agent_detected` and once at startup — the full reconcile
   covers panes moved between tabs as well.
-- Workspace labels are reconciled on `workspace.created` and once at startup.
+- Workspace labels are reconciled on `workspace.created` / `workspace.renamed` /
+  `workspace.updated` / `pane.closed` / `pane.moved`, once at startup, and by the
+  watcher loop (default every 5 s). A manual rename keeps the base and gets the
+  `:wP` suffix re-appended on the `workspace.renamed` event (immediately).
+- The auto base is derived from the root pane (lowest-numbered pane of the
+  first tab), which matches herdr's own identity source.
 - `herdr agent rename` does not emit an event, so the label keeps the old name until
   the next detection event (e.g. agent exit or restart).
 - Pane IDs change when a pane moves to another workspace; the label is not updated
   on move.
-- Manifest changes (new event hooks) take effect after a herdr server restart;
-  script changes apply immediately because hooks read the script per event.
+- Manifest changes (new event hooks) are picked up on the next event dispatch (herdr re-reads
+  the plugin registry before running hooks), but `[[startup]]` hooks only run at server start:
+  after installing or updating the plugin, restart herdr once so the workspace watcher spawns.
+  Script changes apply immediately because hooks read the script per event.
