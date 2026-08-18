@@ -46,16 +46,16 @@ LOCK_FILE = os.path.join(STATE_DIR, "workspace-sync.lock")
 PID_FILE = os.path.join(STATE_DIR, "pane-id-watcher.pid")
 
 _CFG = plugin_config.load()
-SEP = _CFG["format"]["separator"]          # ":wP" / "_wP" / ...
-ALWAYS_VISIBLE = _CFG["behavior"]["always_visible"]
+WS_SEP = _CFG["format"]["workspace"]["separator"]   # ":wP" / "_wP" / ...
+WS_AV = _CFG["behavior"]["workspace"]
 
 
 def reload_config():
     """Re-read config.toml (the watcher is long-lived, so it reloads per poll)."""
-    global _CFG, SEP, ALWAYS_VISIBLE
+    global _CFG, WS_SEP, WS_AV
     _CFG = plugin_config.load()
-    SEP = _CFG["format"]["separator"]
-    ALWAYS_VISIBLE = _CFG["behavior"]["always_visible"]
+    WS_SEP = _CFG["format"]["workspace"]["separator"]
+    WS_AV = _CFG["behavior"]["workspace"]
 
 # herdr's public-id alphabet (encode_public_number in src/workspace.rs)
 PANE_ALPHABET = "123456789ABCDEFGHJKMNPQRSTVWXYZ0"
@@ -248,8 +248,8 @@ def reconcile():
             if not ws_id:
                 continue
             label = ws.get("label") or ""
-            suffix = SEP + ws_id
-            base, had_suffix = split_label(label, ws_id, SEP)
+            suffix = WS_SEP + ws_id
+            base, had_suffix = split_label(label, ws_id, WS_SEP)
             cwd = root_pane_cwd(by_ws.get(ws_id, []))
             derived = derive_label(cwd) if cwd else None
 
@@ -271,7 +271,7 @@ def reconcile():
                 new_label = desired if desired == ws_id else f"{desired}{suffix}"
             else:
                 # manual: keep the user's name; add the id only when configured
-                if ALWAYS_VISIBLE:
+                if WS_AV:
                     desired = base
                     if not desired:
                         desired = ws_id

@@ -46,10 +46,10 @@ EVENT="${HERDR_PLUGIN_EVENT:-}"
 EVENT_JSON="${HERDR_PLUGIN_EVENT_JSON:-}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Plugin config (see plugin_config.py): id separator (":wP" / "_wP" / ...)
-# and whether manual renames keep the id visible.
-SEP="$(python3 "$SCRIPT_DIR/plugin_config.py" get format.separator 2>/dev/null || printf ':')"
-AV="$(python3 "$SCRIPT_DIR/plugin_config.py" get behavior.always_visible 2>/dev/null || printf 'true')"
+# Plugin config (see plugin_config.py): per-type id separator (":wP" / "_wP" / ...)
+# and whether manual renames keep the pane id visible.
+PANE_SEP="$(python3 "$SCRIPT_DIR/plugin_config.py" get format.pane.separator 2>/dev/null || printf ':')"
+PANE_AV="$(python3 "$SCRIPT_DIR/plugin_config.py" get behavior.pane 2>/dev/null || printf 'True')"
 
 # --- Startup reconcile: append the short pane id to manual pane labels -----
 # Manual (user-set) pane labels keep their name and get ":<pane-id>" appended
@@ -57,7 +57,7 @@ AV="$(python3 "$SCRIPT_DIR/plugin_config.py" get behavior.always_visible 2>/dev/
 # labels ("pF" / "<agent> | pF") are left for the event path. Runs once at
 # startup because herdr emits no event when a pane is renamed manually.
 if [ "${1:-}" = "--reconcile" ]; then
-  python3 - "$SCRIPT_DIR" "$LOG" "$SEP" "$AV" <<'PY'
+  python3 - "$SCRIPT_DIR" "$LOG" "$PANE_SEP" "$PANE_AV" <<'PY'
 import json, os, re, subprocess, sys
 sys.path.insert(0, sys.argv[1])
 HERDR = os.environ.get("HERDR_BIN_PATH", "herdr")
@@ -151,11 +151,11 @@ except Exception:
       fi
     else
       # manual label: keep the user's name; ensure the pane id stays visible
-      if [ "$AV" = "false" ]; then
+      if [ "$PANE_AV" = "false" ]; then
         exit 0  # configured: manual renames hide the id
       fi
-      if [ -n "$CUR" ] && ! printf '%s' "$CUR" | grep -qE "(:|_|${SEP})${SHORT_ID}$"; then
-        LABEL="$CUR${SEP}$SHORT_ID"
+      if [ -n "$CUR" ] && ! printf '%s' "$CUR" | grep -qE "(:|_|${PANE_SEP})${SHORT_ID}$"; then
+        LABEL="$CUR${PANE_SEP}$SHORT_ID"
         log "  -> manual label '$CUR', appended pane id"
       else
         exit 0

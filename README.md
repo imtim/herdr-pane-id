@@ -97,18 +97,30 @@ cycle — no restart needed.
 
 ```toml
 [behavior]
-# Keep the workspace/tab/pane id visible even after a manual rename:
+# Keep the id visible even after a manual rename, per label type:
 #   true  -> "MyName:wP" / "MyTab:t2" / "MyPane:pF"   (default)
 #   false -> a manual rename hides the id again
-always_visible = true
+workspace = true
+tab = true
+pane = true
 
-[format]
-# Separator between a name and its id: ":wP", "_wP", " wP", ...
+[format.workspace]
+# Separator between the workspace name and its id: ":wP", "_wP", " wP", ...
+separator = ":"
+
+[format.tab]
+# Separator between the tab name and its id: ":t2", "_t2", ...
+separator = ":"
+
+[format.pane]
+# Separator between the pane name and its id: ":pF", "_pF", ...
 separator = ":"
 ```
 
 `always_visible = false` only affects manual labels: auto-managed labels
-(`pF`, `pi | pF`, `1_t1:p1`, `<derived>:wP`) keep showing the ids.
+(`pF`, `pi | pF`, `1_t1:p1`, `<derived>:wP`) keep showing the ids. Pre-0.8
+configs using flat `always_visible` / `separator` keys still work and apply
+to all three types.
 
 ## Requirements
 

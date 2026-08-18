@@ -15,9 +15,19 @@ import os
 import sys
 
 DEFAULTS = {
-    "behavior": {"always_visible": True},
-    "format": {"separator": ":"},
+    "behavior": {
+        "workspace": True,
+        "tab": True,
+        "pane": True,
+    },
+    "format": {
+        "workspace": {"separator": ":"},
+        "tab": {"separator": ":"},
+        "pane": {"separator": ":"},
+    },
 }
+
+TYPES = ("workspace", "tab", "pane")
 
 CONFIG_TEMPLATE = """# herdr-pane-id plugin configuration
 # Seeded automatically; edits are picked up on the next event or watcher
@@ -25,13 +35,23 @@ CONFIG_TEMPLATE = """# herdr-pane-id plugin configuration
 # `herdr plugin config-dir pane-id` (env: $HERDR_PLUGIN_CONFIG_DIR)
 
 [behavior]
-# Keep the workspace/tab/pane id visible even after a manual rename:
+# Keep the id visible even after a manual rename, per label type:
 #   true  -> "MyName:wP" / "MyTab:t2" / "MyPane:pF"   (default)
 #   false -> a manual rename hides the id again
-always_visible = true
+workspace = true
+tab = true
+pane = true
 
-[format]
-# Separator between a name and its id: ":wP", "_wP", " wP", ...
+[format.workspace]
+# Separator between the workspace name and its id: ":wP", "_wP", " wP", ...
+separator = ":"
+
+[format.tab]
+# Separator between the tab name and its id: ":t2", "_t2", ...
+separator = ":"
+
+[format.pane]
+# Separator between the pane name and its id: ":pF", "_pF", ...
 separator = ":"
 """
 
@@ -61,11 +81,25 @@ def load():
 
         with open(path, "rb") as f:
             data = tomllib.load(f)
-        for section, values in data.items():
-            if isinstance(values, dict) and isinstance(cfg.get(section), dict):
-                cfg[section].update(
-                    {k: v for k, v in values.items() if k in cfg[section]}
-                )
+        behavior = data.get("behavior") or {}
+        if isinstance(behavior, dict):
+            legacy = behavior.get("always_visible")
+            if isinstance(legacy, bool):  # pre-0.8 format: applies to all types
+                for t in TYPES:
+                    cfg["behavior"][t] = legacy
+            for t in TYPES:
+                if isinstance(behavior.get(t), bool):
+                    cfg["behavior"][t] = behavior[t]
+        fmt = data.get("format") or {}
+        if isinstance(fmt, dict):
+            legacy = fmt.get("separator")
+            if isinstance(legacy, str):  # pre-0.8 format: applies to all types
+                for t in TYPES:
+                    cfg["format"][t]["separator"] = legacy
+            for t in TYPES:
+                v = fmt.get(t)
+                if isinstance(v, dict) and isinstance(v.get("separator"), str):
+                    cfg["format"][t]["separator"] = v["separator"]
     except Exception:
         pass
     return cfg
