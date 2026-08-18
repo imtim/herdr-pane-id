@@ -1,6 +1,6 @@
 # herdr-pane-id
 
-[English](README.md) | **中文**
+[English](README.md) | **中文** | [更新日志](CHANGELOG.md)
 
 Herdr 插件：给每个 pane 打上短 pane ID（如 `pF`）标签，herdr 检测到 agent 后再加上 agent 名（`pi | pF`）——让你随时知道正在看的是哪个窗口，并能从任何地方按 id 定位它：`herdr pane run wP:pF ...`、`herdr agent prompt pi ...`，或从另一个 agent pane 里调用（与 [herdr agent skill](https://herdr.dev/docs/agent-skill/) 配合使用效果最佳）。
 
