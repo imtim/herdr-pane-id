@@ -35,12 +35,27 @@ import subprocess
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import plugin_config  # noqa: E402
+
 HERDR = os.environ.get("HERDR_BIN_PATH", "herdr")
 STATE_DIR = os.environ.get("HERDR_PLUGIN_STATE_DIR", "/tmp")
 LOG = os.path.join(STATE_DIR, "pane-id.log")
 STATE_FILE = os.path.join(STATE_DIR, "workspace-bases.json")
 LOCK_FILE = os.path.join(STATE_DIR, "workspace-sync.lock")
 PID_FILE = os.path.join(STATE_DIR, "pane-id-watcher.pid")
+
+_CFG = plugin_config.load()
+SEP = _CFG["format"]["separator"]          # ":wP" / "_wP" / ...
+ALWAYS_VISIBLE = _CFG["behavior"]["always_visible"]
+
+
+def reload_config():
+    """Re-read config.toml (the watcher is long-lived, so it reloads per poll)."""
+    global _CFG, SEP, ALWAYS_VISIBLE
+    _CFG = plugin_config.load()
+    SEP = _CFG["format"]["separator"]
+    ALWAYS_VISIBLE = _CFG["behavior"]["always_visible"]
 
 # herdr's public-id alphabet (encode_public_number in src/workspace.rs)
 PANE_ALPHABET = "123456789ABCDEFGHJKMNPQRSTVWXYZ0"
@@ -152,13 +167,15 @@ def root_pane_cwd(panes):
 
 # --- label parsing ---------------------------------------------------------
 
-def split_label(label, ws_id):
-    """Return (base, had_suffix). Accepts 'Name:id' and legacy 'Name: id' / 'id Name'."""
-    if label.endswith(":" + ws_id):
-        return label[: -len(ws_id) - 1], True
-    if label.endswith(": " + ws_id):
+def split_label(label, ws_id, sep=":"):
+    """Return (base, had_suffix). Accepts 'Name:id' (current separator or the
+    historical ':' one) and legacy 'Name: id' / 'id Name'."""
+    for s in (sep, ":", "_"):
+        if label.endswith(s + ws_id):
+            return label[: -len(ws_id) - len(s)], True
+    if label.endswith(": " + ws_id):  # legacy 'Name: id'
         return label[: -len(ws_id) - 2], True
-    if label.startswith(ws_id + " "):
+    if label.startswith(ws_id + " "):  # legacy 'id Name'
         return label[len(ws_id) + 1:], True
     return label, False
 
@@ -231,8 +248,8 @@ def reconcile():
             if not ws_id:
                 continue
             label = ws.get("label") or ""
-            suffix = ":" + ws_id
-            base, had_suffix = split_label(label, ws_id)
+            suffix = SEP + ws_id
+            base, had_suffix = split_label(label, ws_id, SEP)
             cwd = root_pane_cwd(by_ws.get(ws_id, []))
             derived = derive_label(cwd) if cwd else None
 
@@ -249,11 +266,19 @@ def reconcile():
 
             if mode == "auto":
                 desired = derived if derived is not None else base
+                if not desired:
+                    desired = ws_id
+                new_label = desired if desired == ws_id else f"{desired}{suffix}"
             else:
-                desired = base
-            if not desired:
-                desired = ws_id
-            new_label = desired if desired == ws_id else f"{desired}{suffix}"
+                # manual: keep the user's name; add the id only when configured
+                if ALWAYS_VISIBLE:
+                    desired = base
+                    if not desired:
+                        desired = ws_id
+                    new_label = desired if desired == ws_id else f"{desired}{suffix}"
+                else:
+                    desired = base
+                    new_label = label  # manual rename hides the id
 
             state[ws_id] = {"mode": mode, "base": desired}
             if new_label != label:
@@ -305,6 +330,7 @@ def watch_loop():
     fails = 0
     while True:
         try:
+            reload_config()
             reconcile()
             fails = 0
         except Exception as exc:

@@ -1,8 +1,8 @@
 id = "pane-id"
 name = "Pane ID"
-version = "0.6.0"
+version = "0.7.0"
 min_herdr_version = "0.8.0"
-description = "Label every pane with its pane ID (plus agent name); compact tab labels; workspace labels '<name>:wP' follow the root pane folder; tab/pane/workspace ids always stay visible even after manual renames"
+description = "Label every pane with its pane ID (plus agent name); compact tab labels; workspace labels '<name>:wP' follow the root pane folder; configurable id separator and always-visible behavior (config.toml)"
 platforms = ["linux", "macos"]
 
 [[events]]

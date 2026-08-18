@@ -44,6 +44,12 @@ sys.exit(1)
 
 EVENT="${HERDR_PLUGIN_EVENT:-}"
 EVENT_JSON="${HERDR_PLUGIN_EVENT_JSON:-}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Plugin config (see plugin_config.py): id separator (":wP" / "_wP" / ...)
+# and whether manual renames keep the id visible.
+SEP="$(python3 "$SCRIPT_DIR/plugin_config.py" get format.separator 2>/dev/null || printf ':')"
+AV="$(python3 "$SCRIPT_DIR/plugin_config.py" get behavior.always_visible 2>/dev/null || printf 'true')"
 
 # --- Startup reconcile: append the short pane id to manual pane labels -----
 # Manual (user-set) pane labels keep their name and get ":<pane-id>" appended
@@ -51,9 +57,13 @@ EVENT_JSON="${HERDR_PLUGIN_EVENT_JSON:-}"
 # labels ("pF" / "<agent> | pF") are left for the event path. Runs once at
 # startup because herdr emits no event when a pane is renamed manually.
 if [ "${1:-}" = "--reconcile" ]; then
-  python3 - "$LOG" <<'PY'
+  python3 - "$SCRIPT_DIR" "$LOG" "$SEP" "$AV" <<'PY'
 import json, os, re, subprocess, sys
+sys.path.insert(0, sys.argv[1])
 HERDR = os.environ.get("HERDR_BIN_PATH", "herdr")
+LOG = sys.argv[2]
+SEP = sys.argv[3]
+AV = sys.argv[4].strip().lower() in ("1", "true", "yes")
 AUTO = re.compile(r"^(?:p[0-9A-Z]+|[^|]*\| *p[0-9A-Z]+)$")
 
 def run(*args):
@@ -68,7 +78,6 @@ def run(*args):
 res = run("pane", "list")
 if res is None:
     sys.exit(0)
-log = sys.argv[1]
 for p in res.get("panes", []):
     pane_id = p.get("pane_id") or ""
     label = p.get("label") or ""
@@ -77,11 +86,13 @@ for p in res.get("panes", []):
     short_id = pane_id.split(":")[-1]
     if AUTO.match(label.strip()):
         continue  # plugin-managed label (plain id or '<agent> | id')
-    if label.endswith(":" + short_id):
-        continue  # manual label already carries its id
-    new_label = f"{label}:{short_id}"
+    if label.endswith(SEP + short_id) or label.endswith(":" + short_id):
+        continue  # manual label already carries its id (any separator)
+    if not AV:
+        continue  # configured: manual renames hide the id
+    new_label = f"{label}{SEP}{short_id}"
     if run("pane", "rename", pane_id, new_label) is not None:
-        with open(log, "a") as f:
+        with open(LOG, "a") as f:
             f.write(f"pane: {pane_id} '{label}' -> '{new_label}' (manual + id)\n")
 PY
   exit 0
@@ -91,7 +102,6 @@ fi
 # Runs for every event (pane.created/closed/moved, tab.created,
 # pane.agent_detected); tab-label.py is idempotent and only touches tabs
 # whose label is herdr's default numbering or a label this plugin set.
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ -f "$SCRIPT_DIR/tab-label.py" ]; then
   python3 "$SCRIPT_DIR/tab-label.py" >>"$LOG" 2>&1 || log "$(date '+%F %T') tab reconcile failed"
 fi
@@ -140,9 +150,12 @@ except Exception:
         log "  -> agent released/gone, back to plain label"
       fi
     else
-      # manual label: keep the user's name, ensure the pane id stays visible
-      if [ -n "$CUR" ] && ! printf '%s' "$CUR" | grep -q ":$SHORT_ID$"; then
-        LABEL="$CUR:$SHORT_ID"
+      # manual label: keep the user's name; ensure the pane id stays visible
+      if [ "$AV" = "false" ]; then
+        exit 0  # configured: manual renames hide the id
+      fi
+      if [ -n "$CUR" ] && ! printf '%s' "$CUR" | grep -qE "(:|_|${SEP})${SHORT_ID}$"; then
+        LABEL="$CUR${SEP}$SHORT_ID"
         log "  -> manual label '$CUR', appended pane id"
       else
         exit 0

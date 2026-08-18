@@ -87,6 +87,29 @@ no typed commands, works in agent panes too:
 [[ -n "${HERDR_PANE_ID:-}" ]] && PROMPT="[%{$reset_color%}$HERDR_PANE_ID] $PROMPT"
 ```
 
+## Configuration
+
+herdr has no built-in plugin settings API (plugin v1), so this plugin reads a
+`config.toml` from its config directory (printed by `herdr plugin config-dir
+pane-id`; env: `$HERDR_PLUGIN_CONFIG_DIR`). A commented template is seeded
+there on first use, and edits are picked up on the next event or watcher
+cycle — no restart needed.
+
+```toml
+[behavior]
+# Keep the workspace/tab/pane id visible even after a manual rename:
+#   true  -> "MyName:wP" / "MyTab:t2" / "MyPane:pF"   (default)
+#   false -> a manual rename hides the id again
+always_visible = true
+
+[format]
+# Separator between a name and its id: ":wP", "_wP", " wP", ...
+separator = ":"
+```
+
+`always_visible = false` only affects manual labels: auto-managed labels
+(`pF`, `pi | pF`, `1_t1:p1`, `<derived>:wP`) keep showing the ids.
+
 ## Requirements
 
 - herdr >= 0.8.0
