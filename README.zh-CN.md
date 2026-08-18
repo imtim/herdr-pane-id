@@ -83,16 +83,16 @@ separator = ":"          # "MyPane:pF"
 
 ## 安装
 
-从 GitHub 安装（发布后）：
+从 GitHub 安装：
 
 ```bash
-herdr plugin install <github-user>/herdr-pane-id
+herdr plugin install imtim/herdr-pane-id
 ```
 
-本地开发：
+本地开发（改动即时生效，无需重新安装）：
 
 ```bash
-git clone https://github.com/<github-user>/herdr-pane-id.git
+git clone https://github.com/imtim/herdr-pane-id.git
 herdr plugin link /path/to/herdr-pane-id
 ```
 
