@@ -45,6 +45,48 @@ sys.exit(1)
 EVENT="${HERDR_PLUGIN_EVENT:-}"
 EVENT_JSON="${HERDR_PLUGIN_EVENT_JSON:-}"
 
+# --- Startup reconcile: append the short pane id to manual pane labels -----
+# Manual (user-set) pane labels keep their name and get ":<pane-id>" appended
+# so the pane id is always visible ("MyPane" -> "MyPane:pF"). Plugin-managed
+# labels ("pF" / "<agent> | pF") are left for the event path. Runs once at
+# startup because herdr emits no event when a pane is renamed manually.
+if [ "${1:-}" = "--reconcile" ]; then
+  python3 - "$LOG" <<'PY'
+import json, os, re, subprocess, sys
+HERDR = os.environ.get("HERDR_BIN_PATH", "herdr")
+AUTO = re.compile(r"^(?:p[0-9A-Z]+|[^|]*\| *p[0-9A-Z]+)$")
+
+def run(*args):
+    r = subprocess.run([HERDR, *args], capture_output=True, text=True)
+    if r.returncode != 0:
+        return None
+    try:
+        return json.loads(r.stdout).get("result")
+    except Exception:
+        return None
+
+res = run("pane", "list")
+if res is None:
+    sys.exit(0)
+log = sys.argv[1]
+for p in res.get("panes", []):
+    pane_id = p.get("pane_id") or ""
+    label = p.get("label") or ""
+    if not pane_id or not label:
+        continue
+    short_id = pane_id.split(":")[-1]
+    if AUTO.match(label.strip()):
+        continue  # plugin-managed label (plain id or '<agent> | id')
+    if label.endswith(":" + short_id):
+        continue  # manual label already carries its id
+    new_label = f"{label}:{short_id}"
+    if run("pane", "rename", pane_id, new_label) is not None:
+        with open(log, "a") as f:
+            f.write(f"pane: {pane_id} '{label}' -> '{new_label}' (manual + id)\n")
+PY
+  exit 0
+fi
+
 # --- Tab labels: "<number>_<tab-id>:<pane-id>" or "<number>_<tab-id>(<n>)" -
 # Runs for every event (pane.created/closed/moved, tab.created,
 # pane.agent_detected); tab-label.py is idempotent and only touches tabs
@@ -70,13 +112,16 @@ case "$EVENT" in
     LABEL="$SHORT_ID"
     ;;
   pane.agent_detected)
-    AGENT="$(printf '%s' "$EVENT_JSON" | json_get data.agent agent 2>/dev/null || true)"
-    RELEASED="$(printf '%s' "$EVENT_JSON" | json_get data.released released 2>/dev/null || true)"
-    if [ -n "$AGENT" ] && [ "$AGENT" != "None" ] && [ "$RELEASED" != "True" ]; then
-      # prefer the user-assigned agent name (e.g. `agent start testpi`), which is
-      # what you address with `herdr agent prompt <name>`; fall back to the
-      # detected kind label
-      NAME="$( "$HERDR" agent list 2>/dev/null | python3 -c '
+    CUR="$( "$HERDR" pane get "$PANE_ID" 2>/dev/null | json_get result.pane.label result.label label 2>/dev/null || true )"
+    if printf '%s' "$CUR" | python3 -c 'import re,sys; sys.exit(0 if re.match(r"^(p[0-9A-Z]+|[^|]*\| *p[0-9A-Z]+)$", sys.stdin.read().strip()) else 1)'; then
+      # plugin-managed label (plain id or '<agent> | id'): apply the agent label
+      AGENT="$(printf '%s' "$EVENT_JSON" | json_get data.agent agent 2>/dev/null || true)"
+      RELEASED="$(printf '%s' "$EVENT_JSON" | json_get data.released released 2>/dev/null || true)"
+      if [ -n "$AGENT" ] && [ "$AGENT" != "None" ] && [ "$RELEASED" != "True" ]; then
+        # prefer the user-assigned agent name (e.g. `agent start testpi`), which is
+        # what you address with `herdr agent prompt <name>`; fall back to the
+        # detected kind label
+        NAME="$( "$HERDR" agent list 2>/dev/null | python3 -c '
 import json, sys
 try:
     d = json.load(sys.stdin)
@@ -87,12 +132,21 @@ try:
 except Exception:
     pass
 ' "$PANE_ID" )"
-      [ -z "$NAME" ] && NAME="$AGENT"
-      LABEL="$NAME | $SHORT_ID"
-      log "  -> agent=$AGENT name=$NAME"
+        [ -z "$NAME" ] && NAME="$AGENT"
+        LABEL="$NAME | $SHORT_ID"
+        log "  -> agent=$AGENT name=$NAME"
+      else
+        LABEL="$SHORT_ID"
+        log "  -> agent released/gone, back to plain label"
+      fi
     else
-      LABEL="$SHORT_ID"
-      log "  -> agent released/gone, back to plain label"
+      # manual label: keep the user's name, ensure the pane id stays visible
+      if [ -n "$CUR" ] && ! printf '%s' "$CUR" | grep -q ":$SHORT_ID$"; then
+        LABEL="$CUR:$SHORT_ID"
+        log "  -> manual label '$CUR', appended pane id"
+      else
+        exit 0
+      fi
     fi
     ;;
   *)

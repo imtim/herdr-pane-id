@@ -3,8 +3,9 @@
 
 A single-pane tab with herdr's default numbering is renamed to
 "<number>_<tab-id>:<pane-id>" (e.g. "1_t1:p1"); a tab with two or more panes
-shows its pane count instead: "1_t1(2)". Manual (non-numeric) tab labels are
-never touched.
+shows its pane count instead: "1_t1(2)". Manual (non-numeric) tab labels keep
+the user's name with the short tab id appended ("MyTab" -> "MyTab:t2"), so the
+tab id stays visible no matter what.
 
 The base number always comes from the tab's own label: herdr's default tab
 numbering (a plain integer) or the integer prefix of a label this plugin set
@@ -77,7 +78,15 @@ def reconcile():
             else:
                 m = OWN_LABEL.match(label) or LEGACY_TAB_LABEL.match(label) or LEGACY_PANE_LABEL.match(label)
                 if not m:
-                    continue  # manual label — leave it alone
+                    # manual label: keep the user's name, append the short tab
+                    # id so the tab id always stays visible ("MyTab" -> "MyTab:t2")
+                    short_tid = short(t["tab_id"])
+                    if label.endswith(":" + short_tid):
+                        continue
+                    new_label = f"{label}:{short_tid}"
+                    if new_label != label and run("tab", "rename", t["tab_id"], new_label) is not None:
+                        logmsg(f"{t['tab_id']} '{label}' -> '{new_label}' (manual + id)")
+                    continue
                 base = m.group(1)
             tab_panes = panes_by_tab.get(t.get("tab_id"), [])
             count = len(tab_panes)

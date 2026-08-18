@@ -7,7 +7,8 @@ you are looking at (and can target it with `herdr pane run wP:pF ...` or
 
 Tabs follow the same idea in a compact form: a tab with exactly one pane shows
 `1_t1:p1` (number, tab id, pane id); once a second pane is added it switches to
-`1_t1(2)` with the pane count. Workspaces show `Projects:wP` (name + id), also
+`1_t1(2)` with the pane count. Manual tab names keep the name with the tab id
+appended (`MyTab:t2`). Workspaces show `Projects:wP` (name + id), also
 for workspaces created after herdr started.
 
 ## Behavior
@@ -27,13 +28,15 @@ Tab labels (reconciled on every pane/tab event and at startup):
 | --- | --- |
 | exactly one pane, default numbering | `1_t1:p1` |
 | two or more panes | `1_t1(2)` (pane count) |
-| manual (non-numeric) label | untouched, always |
+| manual (non-numeric) label | `Name:tN` (name kept, tab id appended) |
 
 The base number always comes from the tab's own label, so `1_t1:p1` stays
-consistent with what the tab bar already displayed; manual labels are never
-clobbered. The reconcile (`tab-label.py`) is idempotent and self-heals: if the
-single pane in a tab changes, the label is updated on the next event. Labels
-from older plugin versions (`3: t5: pP`, `3: pP`) are upgraded automatically.
+consistent with what the tab bar already displayed. The reconcile
+(`tab-label.py`) is idempotent and self-heals: if the single pane in a tab
+changes, the label is updated on the next event. Labels from older plugin
+versions (`3: t5: pP`, `3: pP`) are upgraded automatically. A manual rename
+is picked up on the `tab.renamed` event and gets the `:tN` id appended
+immediately.
 
 Workspace labels (reconciled at startup, on `workspace.created` /
 `workspace.renamed` / `workspace.updated` / `pane.closed` / `pane.moved`, and by
@@ -66,6 +69,13 @@ with `HERDR_PANE_ID_WATCH_INTERVAL` (seconds) and
 `<agent-name>` is the user-assigned name from `herdr agent start <name>` (what you
 address with `herdr agent prompt <name>`), falling back to the detected agent kind
 (`pi`, `codex`, ...) for unnamed agents.
+
+Pane labels keep the pane id visible in every state: plugin-managed panes show
+`pF` / `<agent> | pF`, and a manual pane rename keeps your name with the pane id
+appended (`MyPane:pF`). herdr emits no event when a pane is renamed manually, so
+the id is re-appended on that pane's next `pane.agent_detected` event or at the
+next startup (`on-pane-event.sh --reconcile`); the agent name is only injected
+into plugin-managed labels, never into manual ones.
 
 ## Zero-noise in-pane prompt (recommended, optional)
 
@@ -129,12 +139,13 @@ herdr plugin unlink pane-id
 
 ## Notes
 
-- Only newly created panes are labeled; existing panes are left untouched so manual
+- Only newly created panes are labeled with the plain id; existing panes are left untouched so manual
   titles are not clobbered. Existing agent panes pick up the agent label on their
-  next `pane.agent_detected` event.
+  next `pane.agent_detected` event. Manual pane names get `:pF` appended (startup
+  reconcile or next agent event) and are never overwritten.
 - Tab labels are reconciled on `pane.created` / `pane.closed` / `pane.moved` /
-  `tab.created` / `pane.agent_detected` and once at startup — the full reconcile
-  covers panes moved between tabs as well.
+  `tab.created` / `tab.renamed` / `pane.agent_detected` and once at startup — the full reconcile
+  covers panes moved between tabs as well. Manual tab names get `:tN` appended.
 - Workspace labels are reconciled on `workspace.created` / `workspace.renamed` /
   `workspace.updated` / `pane.closed` / `pane.moved`, once at startup, and by the
   watcher loop (default every 5 s). A manual rename keeps the base and gets the
