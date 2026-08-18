@@ -133,16 +133,16 @@ automatically when the config changes.
 
 ## Install
 
-From GitHub (once published):
+From GitHub:
 
 ```bash
-herdr plugin install <github-user>/herdr-pane-id
+herdr plugin install imtim/herdr-pane-id
 ```
 
-Local development:
+Local development (edits apply immediately, no reinstall needed):
 
 ```bash
-git clone https://github.com/<github-user>/herdr-pane-id.git
+git clone https://github.com/imtim/herdr-pane-id.git
 herdr plugin link /path/to/herdr-pane-id
 ```
 
