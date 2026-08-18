@@ -1,5 +1,7 @@
 # herdr-pane-id
 
+[English](README.md) | [中文](README.zh-CN.md)
+
 Herdr plugin that labels every pane with its short pane ID (e.g. `pF`), plus the
 agent name once herdr detects an agent (`pi | pF`) — so you always know which pane
 you are looking at, and can target it from anywhere: `herdr pane run wP:pF ...`,
