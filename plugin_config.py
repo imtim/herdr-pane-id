@@ -22,7 +22,7 @@ DEFAULTS = {
     },
     "format": {
         "workspace": {"separator": ":"},
-        "tab": {"separator": ":"},
+        "tab": {"separator": ":", "number_separator": "_"},
         "pane": {"separator": ":"},
     },
 }
@@ -30,29 +30,53 @@ DEFAULTS = {
 TYPES = ("workspace", "tab", "pane")
 
 CONFIG_TEMPLATE = """# herdr-pane-id plugin configuration
+# ==============================================================
 # Seeded automatically; edits are picked up on the next event or watcher
 # cycle (no herdr restart needed). Location: the directory printed by
-# `herdr plugin config-dir pane-id` (env: $HERDR_PLUGIN_CONFIG_DIR)
+# `herdr plugin config-dir pane-id` (env: $HERDR_PLUGIN_CONFIG_DIR).
+#
+# Every option has a per-type variant (workspace / tab / pane) so you can
+# mix styles freely. Invalid or missing values fall back to the defaults
+# shown here.
 
 [behavior]
-# Keep the id visible even after a manual rename, per label type:
-#   true  -> "MyName:wP" / "MyTab:t2" / "MyPane:pF"   (default)
-#   false -> a manual rename hides the id again
-workspace = true
-tab = true
-pane = true
+# Keep the id visible even after a manual rename?
+#   true  -> the id is appended to your name: "MyName:wP" / "MyTab:t2" / "MyPane:pF"
+#   false -> a manual rename hides the id; the label stays exactly as you set it
+# Only manual labels are affected; auto-managed labels (pF, "pi | pF",
+# "1_t1:p1", "<derived>:wP") always show the ids.
+workspace = true    # example: manual rename "MyProject" stays "MyProject:wR"
+tab = true          # example: manual rename "MyTab" stays "MyTab:t2"
+pane = true         # example: manual rename "MyPane" stays "MyPane:pF"
+
+# --- Example: hide the id only for panes, keep it for workspace and tab ---
+# workspace = true
+# tab = true
+# pane = false
 
 [format.workspace]
-# Separator between the workspace name and its id: ":wP", "_wP", " wP", ...
-separator = ":"
+# Separator between the workspace name and its id.
+separator = ":"     # "trading-manager:wR" (":"), "trading-manager_wR" ("_"), "trading-manager wR" (" ")
+
+# --- Example: underscore-separated workspace labels ---
+# separator = "_"
 
 [format.tab]
-# Separator between the tab name and its id: ":t2", "_t2", ...
-separator = ":"
+# Separator between the tab name/id and the pane id.
+separator = ":"     # "MyTab:t2" (manual), "1_t1:p1" (auto)
+# Separator between the tab number and the tab id (auto labels).
+number_separator = "_"   # "1_t1:p1" ("_"), "1-t1:p1" ("-"), "1 t1:p1" (" ")
+
+# --- Example: tmux-like dash style ---
+# separator = ":"
+# number_separator = "-"    # "1-t1:p1"
 
 [format.pane]
-# Separator between the pane name and its id: ":pF", "_pF", ...
-separator = ":"
+# Separator between the pane name and its id.
+separator = ":"     # "MyPane:pF" (manual), "pi | pF" (auto, agent part unchanged)
+
+# --- Example: underscore-separated pane labels ---
+# separator = "_"    # "MyPane_pF"
 """
 
 
@@ -98,8 +122,10 @@ def load():
                     cfg["format"][t]["separator"] = legacy
             for t in TYPES:
                 v = fmt.get(t)
-                if isinstance(v, dict) and isinstance(v.get("separator"), str):
-                    cfg["format"][t]["separator"] = v["separator"]
+                if isinstance(v, dict):
+                    for key in ("separator", "number_separator"):
+                        if isinstance(v.get(key), str) and key in cfg["format"][t]:
+                            cfg["format"][t][key] = v[key]
     except Exception:
         pass
     return cfg
