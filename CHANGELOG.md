@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Nothing yet.
+### Fixed
+- Manual pane renames no longer leave the pane id hidden until the next
+  `pane.agent_detected` event or restart: the detached watcher loop (the same
+  one that follows workspace labels) now re-appends the `:pF` suffix to manual
+  pane labels within a few seconds of a rename. herdr never emits an event and
+  plugin v1 has no `pane.updated` hook for a manual `pane rename`, so the
+  watcher is the only prompt path. Agent panes and auto-managed labels are
+  untouched.
 
 ## [0.9.0] - 2026-08-18
 

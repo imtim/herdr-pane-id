@@ -75,10 +75,12 @@ address with `herdr agent prompt <name>`), falling back to the detected agent ki
 
 Pane labels keep the pane id visible in every state: plugin-managed panes show
 `pF` / `<agent> | pF`, and a manual pane rename keeps your name with the pane id
-appended (`MyPane:pF`). herdr emits no event when a pane is renamed manually, so
-the id is re-appended on that pane's next `pane.agent_detected` event or at the
-next startup (`on-pane-event.sh --reconcile`); the agent name is only injected
-into plugin-managed labels, never into manual ones.
+appended (`MyPane:pF`). herdr emits no event when a pane is renamed manually and
+plugin v1 has no `pane.updated` hook, so the id is re-appended by the watcher
+loop within a few seconds (and, as a fallback, on that pane's next
+`pane.agent_detected` event or at startup via `on-pane-event.sh --reconcile`);
+the agent name is only injected into plugin-managed labels, never into manual
+ones.
 
 ## Zero-noise in-pane prompt (recommended, optional)
 
@@ -180,8 +182,8 @@ herdr plugin unlink pane-id
 
 - Only newly created panes are labeled with the plain id; existing panes are left untouched so manual
   titles are not clobbered. Existing agent panes pick up the agent label on their
-  next `pane.agent_detected` event. Manual pane names get `:pF` appended (startup
-  reconcile or next agent event) and are never overwritten.
+  next `pane.agent_detected` event. Manual pane names get `:pF` appended (watcher
+  loop, next agent event, or startup reconcile) and are never overwritten.
 - Tab labels are reconciled on `pane.created` / `pane.closed` / `pane.moved` /
   `tab.created` / `tab.renamed` / `pane.agent_detected` and once at startup — the full reconcile
   covers panes moved between tabs as well. Manual tab names get `:tN` appended.

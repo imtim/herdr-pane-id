@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""pane-id plugin workspace sync: keep every workspace label as "<name>:<id>".
+"""pane-id plugin label sync: keep every workspace and pane label as "<name>:<id>".
 
-Each workspace label is kept in the form "<base>:<ws-id>" (e.g. "Projects:wP"):
+Workspaces are kept in the form "<base>:<ws-id>" (e.g. "Projects:wP"):
 
 - Auto-managed bases follow the workspace's root pane folder, using the same
   derivation herdr uses natively: the enclosing git repo root name when the
@@ -16,7 +16,10 @@ path concern there), so this script reconciles at startup, on
 workspace.created / workspace.renamed / workspace.updated / pane.closed /
 pane.moved events, and from a small detached watcher loop (--watch) spawned
 by the startup run. The watcher polls every few seconds and covers plain
-`cd`s. Disable it with HERDR_PANE_ID_WATCHER=0.
+`cd`s. It also re-appends the pane id to manual pane labels that lost it (a
+manual `pane rename` drops ':pF' with no event and no plugin hook, so the
+watcher puts it back within the next poll). Disable it with
+HERDR_PANE_ID_WATCHER=0.
 
 State: "$HERDR_PLUGIN_STATE_DIR/workspace-bases.json" records per-workspace
 mode ("auto" | "manual") and the base this plugin last wrote, so manual names
@@ -48,14 +51,18 @@ PID_FILE = os.path.join(STATE_DIR, "pane-id-watcher.pid")
 _CFG = plugin_config.load()
 WS_SEP = _CFG["format"]["workspace"]["separator"]   # ":wP" / "_wP" / ...
 WS_AV = _CFG["behavior"]["workspace"]
+PANE_SEP = _CFG["format"]["pane"]["separator"]      # ":pF" / "_pF" / ...
+PANE_AV = _CFG["behavior"]["pane"]
 
 
 def reload_config():
     """Re-read config.toml (the watcher is long-lived, so it reloads per poll)."""
-    global _CFG, WS_SEP, WS_AV
+    global _CFG, WS_SEP, WS_AV, PANE_SEP, PANE_AV
     _CFG = plugin_config.load()
     WS_SEP = _CFG["format"]["workspace"]["separator"]
     WS_AV = _CFG["behavior"]["workspace"]
+    PANE_SEP = _CFG["format"]["pane"]["separator"]
+    PANE_AV = _CFG["behavior"]["pane"]
 
 # herdr's public-id alphabet (encode_public_number in src/workspace.rs)
 PANE_ALPHABET = "123456789ABCDEFGHJKMNPQRSTVWXYZ0"
@@ -234,8 +241,51 @@ def unlock():
 
 # --- reconcile ------------------------------------------------------------
 
+PANE_AUTO = re.compile(r"^(?:p[0-9A-Z]+|[^|]*\| *p[0-9A-Z]+)$")
+
+
+def pane_has_id(label, short_id):
+    """True if a manual pane label already carries its id (any single
+    non-alphanumeric separator, e.g. 'MyPane:pF' / 'MyPane_pF')."""
+    if not label.endswith(short_id) or len(label) <= len(short_id):
+        return False
+    return not label[-len(short_id) - 1].isalnum()
+
+
+def reconcile_panes():
+    """Re-append the pane id to manual pane labels that lost it.
+
+    A manual `pane rename` replaces the label outright, so ':pF' disappears
+    the moment it is set; herdr emits no event and plugin v1 has no
+    `pane.updated` hook to react to. Running from the same watcher loop as
+    the workspace pass, this puts the id back within the next poll (default
+    5 s). Plugin-managed labels ('pF', '<agent> | pF') are left to the event
+    path."""
+    renames = 0
+    for p in cli("pane", "list").get("panes", []):
+        pane_id = p.get("pane_id") or ""
+        label = p.get("label") or ""
+        if not pane_id or not label:
+            continue
+        short_id = pane_id.split(":")[-1]
+        if PANE_AUTO.match(label.strip()):
+            continue  # plugin-managed label (plain id or '<agent> | id')
+        if pane_has_id(label, short_id):
+            continue  # manual label already carries its id
+        if not PANE_AV:
+            continue  # configured: manual renames hide the id
+        new_label = f"{label}{PANE_SEP}{short_id}"
+        if cli("pane", "rename", pane_id, new_label) is not None:
+            logmsg(f"pane: {pane_id} '{label}' -> '{new_label}' (manual + id)")
+            renames += 1
+    if renames:
+        logmsg(f"sync: {renames} pane(s) relabeled")
+    return renames
+
+
 def reconcile():
-    """One pass over all workspaces. Returns number of renames (or -1 if skipped)."""
+    """One pass over all workspaces and panes. Returns number of renames
+    (or -1 if skipped)."""
     if not lock():
         return -1  # another sync (event hook / watcher) is running
     try:
@@ -294,6 +344,10 @@ def reconcile():
                 else:
                     logmsg(f"workspace: rename failed for {ws_id}")
         save_state(state)
+        try:
+            reconcile_panes()
+        except Exception as exc:
+            logmsg(f"sync: pane reconcile failed: {exc}")
         return renames
     finally:
         unlock()

@@ -40,7 +40,7 @@ Workspace 标签（启动时、`workspace.created` / `workspace.renamed` / `work
 
 `<agent-name>` 是 `herdr agent start <name>` 指定的名字（即 `herdr agent prompt <name>` 寻址的名字），未命名 agent 回退为检测到的 agent 类型（`pi`、`codex`……）。
 
-Pane 标签在任何状态下都保留 pane id：插件管理的 pane 显示 `pF` / `<agent> | pF`；手动改名的 pane 保留你的名字并追加 pane id（`MyPane:pF`）。herdr 对 pane 手动改名不发事件，因此 id 会在该 pane 的下一个 `pane.agent_detected` 事件或下次启动时补回（`on-pane-event.sh --reconcile`）；agent 名只注入插件管理的标签，绝不覆盖手动名。
+Pane 标签在任何状态下都保留 pane id：插件管理的 pane 显示 `pF` / `<agent> | pF`；手动改名的 pane 保留你的名字并追加 pane id（`MyPane:pF`）。herdr 对 pane 手动改名不发事件，且插件 v1 没有 `pane.updated` hook，因此 watcher 循环会在几秒内补回 id（兜底：该 pane 的下一个 `pane.agent_detected` 事件或启动时 `on-pane-event.sh --reconcile`）；agent 名只注入插件管理的标签，绝不覆盖手动名。
 
 ## 零噪音的 pane 内提示符（推荐，可选）
 
@@ -122,7 +122,7 @@ herdr plugin unlink pane-id
 
 ## 备注
 
-- 只有新建的 pane 会被打上纯 id 标签；已存在的 pane 保持原样，不会覆盖手动标题。已有 agent pane 在下一个 `pane.agent_detected` 事件时获得 agent 标签。手动 pane 名会被补上 `:pF`（启动校准或下一个 agent 事件），且永远不会被覆盖。
+- 只有新建的 pane 会被打上纯 id 标签；已存在的 pane 保持原样，不会覆盖手动标题。已有 agent pane 在下一个 `pane.agent_detected` 事件时获得 agent 标签。手动 pane 名会被补上 `:pF`（watcher 循环、下一个 agent 事件或启动校准），且永远不会被覆盖。
 - Tab 标签在 `pane.created` / `pane.closed` / `pane.moved` / `tab.created` / `tab.renamed` / `pane.agent_detected` 及启动时校准——全量校准覆盖跨 tab 移动的 pane。手动 tab 名补上 `:tN`。
 - Workspace 标签在 `workspace.created` / `workspace.renamed` / `workspace.updated` / `pane.closed` / `pane.moved`、启动时及 watcher 循环（默认每 5 秒）中校准。手动改名保留基底，并在 `workspace.renamed` 事件上立即补回 `:wP` 后缀。
 - 自动基底取自 root pane（第一个 tab 中编号最小的 pane），与 herdr 自身的身份来源一致。
