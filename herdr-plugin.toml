@@ -1,6 +1,6 @@
 id = "pane-id"
 name = "Pane ID"
-version = "0.9.0"
+version = "0.9.1"
 min_herdr_version = "0.8.0"
 description = "Label panes with their ID and agent name (pi | pF), tabs and workspaces with compact id labels, so you and your agents can address any pane or agent by id — works best with the herdr agent skill; per-type configurable separator and always-visible behavior (config.toml)"
 platforms = ["linux", "macos"]

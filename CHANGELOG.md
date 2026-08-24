@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Nothing yet.
+
+## [0.9.1] - 2026-08-24
+
 ### Fixed
 - Manual pane renames no longer leave the pane id hidden until the next
   `pane.agent_detected` event or restart: the detached watcher loop (the same
@@ -102,5 +106,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial plugin scaffold: label every pane with its short pane id.
 - In-pane prompt prefix (opt-in) with pane id; zero-noise label-only mode.
 
-[Unreleased]: https://github.com/imtim/herdr-pane-id/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/imtim/herdr-pane-id/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/imtim/herdr-pane-id/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/imtim/herdr-pane-id/releases/tag/v0.9.0
